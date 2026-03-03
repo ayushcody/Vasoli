@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  emailVerified       DateTime?
+  password            String
+  name                String?
+  avatarUrl           String?
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  transactions          Transaction[]
+  budgets               Budget[]
+  onboarding            Onboarding?
+  recurringTransactions RecurringTransaction[]
+  goals                 Goal[]
+  reminders             Reminder[]
+  healthScores          FinancialHealthScore[]
+  sessions              Session[]
+  auditLogs             AuditLog[]
+  splits                TransactionSplit[]
+  jobQueues             JobQueue[]
+  chatMessages          ChatMessage[]
+  dailyInsights         DailyInsight[]
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  ipAddress  String?
+  userAgent  String?
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  type      String // EMAIL_VERIFICATION, PASSWORD_RESET
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, token])
+}
+
+model Onboarding {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step      Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  color     String?
+  type      String   @default("EXPENSE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  splits       TransactionSplit[]
+  recurring    RecurringTransaction[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String
+  date        DateTime
+  type        String   @default("EXPENSE")
+  receiptUrl  String?
+
+  // Recurring support
+  isRecurring     Boolean               @default(false)
+  recurringId     String?
+  recurringSource RecurringTransaction? @relation("RecurringSource", fields: [recurringId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  // Split support
+  splits            TransactionSplit[]
+  goalContributions GoalContribution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([categoryId])
+  @@index([recurringId])
+}
+
+model TransactionSplit {
+  id          String  @id @default(cuid())
+  amount      Float
+  description String?
+
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id])
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([userId])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  name      String
+  amount    Float
+  period    String   @default("MONTHLY")
+  startDate DateTime
+  endDate   DateTime
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categories String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model RecurringTransaction {
+  id          String    @id @default(cuid())
+  amount      Float
+  description String
+  type        String    @default("EXPENSE")
+  frequency   String // DAILY, WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, YEARLY
+  startDate   DateTime
+  endDate     DateTime?
+  occurrences Int? // Alternative to endDate
+  lastRun     DateTime?
+  nextRun     DateTime?
+  isActive    Boolean   @default(true)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  transactions Transaction[] @relation("RecurringSource")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([isActive, nextRun])
+}
+
+model Goal {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  deadline      DateTime?
+  status        String    @default("ACTIVE") // ACTIVE, COMPLETED, PAUSED, ARCHIVED
+  color         String?
+  icon          String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  contributions GoalContribution[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([userId, status])
+}
+
+model GoalContribution {
+  id     String  @id @default(cuid())
+  amount Float
+  note   String?
+
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([goalId])
+  @@index([transactionId])
+}
+
+model Reminder {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        String // BILL_DUE, GOAL_MILESTONE, BUDGET_ALERT, RECURRING_REVIEW, CUSTOM
+  dueDate     DateTime
+  status      String    @default("PENDING") // PENDING, SNOOZED, COMPLETED, DISMISSED
+  snoozeUntil DateTime?
+  metadata    String? // JSON for additional context
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([dueDate])
+}
+
+model FinancialHealthScore {
+  id         String  @id @default(cuid())
+  score      Int // 0-100
+  components String // JSON of score breakdown
+  factors    String // JSON of influencing factors
+  insights   String? // JSON array of personalized tips
+
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  userId     String
+  action     String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, VIEW, EXPORT
+  entityType String // Transaction, Budget, Goal, etc.
+  entityId   String?
+  before     String? // JSON snapshot
+  after      String? // JSON snapshot
+  metadata   String? // Additional context
+  ipAddress  String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+}
+
+model JobQueue {
+  id          String    @id @default(cuid())
+  type        String // RECURRING_TRANSACTION, INSIGHT_GENERATION, HEALTH_SCORE, OCR_PROCESSING, EMAIL_NOTIFICATION
+  payload     String // JSON
+  status      String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, RETRYING
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  error       String?
+  runAt       DateTime  @default(now())
+  processedAt DateTime?
+  completedAt DateTime?
+  priority    Int       @default(0) // Higher = more priority
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([status, runAt, priority])
+  @@index([type, status])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id       String  @id @default(cuid())
+  role     String
+  content  String
+  metadata String? // JSON for message context
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model DailyInsight {
+  id       String @id @default(cuid())
+  content  String
+  insights String // JSON structured data
+  type     String @default("GENERAL") // SPENDING, SAVING, BUDGET, GOAL, ANOMALY, TREND
+
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([type, date])
+}
+
+model CachedData {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  data      String // JSON
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@index([expiresAt])
+}

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service TransactionService {
+  rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+  rpc UpdateTransaction(UpdateTransactionRequest) returns (UpdateTransactionResponse);
+  rpc DeleteTransaction(DeleteTransactionRequest) returns (DeleteTransactionResponse);
+}
+
+message Transaction {
+  string id = 1;
+  double amount = 2;
+  string description = 3;
+  google.protobuf.Timestamp date = 4;
+  string type = 5; // e.g., "EXPENSE", "INCOME"
+  optional string receipt_url = 6;
+  string payment_method = 7; // e.g., "UPI", "UPI_LITE", "CASH"
+  optional string upi_id = 8;
+  optional string bank_rrn = 9;
+  bool is_recurring = 10;
+  optional string recurring_id = 11;
+  string user_id = 12;
+  optional string category_id = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+message CreateTransactionRequest {
+  double amount = 1;
+  string description = 2;
+  google.protobuf.Timestamp date = 3;
+  string type = 4;
+  optional string category_id = 5;
+  optional string receipt_url = 6;
+  optional string payment_method = 7;
+  optional string upi_id = 8;
+  optional string bank_rrn = 9;
+}
+
+message CreateTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message GetTransactionRequest {
+  string id = 1;
+}
+
+message GetTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message ListTransactionsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  optional string type = 3;
+  optional string category_id = 4;
+}
+
+message ListTransactionsResponse {
+  repeated Transaction transactions = 1;
+  string next_page_token = 2;
+}
+
+message UpdateTransactionRequest {
+  string id = 1;
+  optional double amount = 2;
+  optional string description = 3;
+  optional google.protobuf.Timestamp date = 4;
+  optional string type = 5;
+  optional string category_id = 6;
+  optional string payment_method = 7;
+  optional string upi_id = 8;
+  optional string bank_rrn = 9;
+}
+
+message UpdateTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message DeleteTransactionRequest {
+  string id = 1;
+}
+
+message DeleteTransactionResponse {}

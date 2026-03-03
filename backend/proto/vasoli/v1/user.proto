@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  rpc GetWealthAnalytics(GetWealthAnalyticsRequest) returns (GetWealthAnalyticsResponse);
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  string avatar_url = 4;
+  bool two_factor_enabled = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message GetProfileRequest {
+  string id = 1; // Can be empty to fetch current authenticated user
+}
+
+message GetProfileResponse {
+  User user = 1;
+}
+
+message UpdateProfileRequest {
+  optional string name = 1;
+  optional string avatar_url = 2;
+}
+
+message UpdateProfileResponse {
+  User user = 1;
+}
+
+message GetWealthAnalyticsRequest {
+  string id = 1;
+}
+
+message GetWealthAnalyticsResponse {
+  double saved = 1;
+  double spent = 2;
+  double invested = 3;
+}

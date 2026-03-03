@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service GoalService {
+  rpc CreateGoal(CreateGoalRequest) returns (CreateGoalResponse);
+  rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+  rpc UpdateGoal(UpdateGoalRequest) returns (UpdateGoalResponse);
+  rpc DeleteGoal(DeleteGoalRequest) returns (DeleteGoalResponse);
+  rpc AddContribution(AddContributionRequest) returns (AddContributionResponse);
+}
+
+message Goal {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  double target_amount = 4;
+  double current_amount = 5;
+  optional google.protobuf.Timestamp deadline = 6;
+  string status = 7; // ACTIVE, COMPLETED, PAUSED
+  optional string color = 8;
+  optional string icon = 9;
+  string user_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateGoalRequest {
+  string name = 1;
+  optional string description = 2;
+  double target_amount = 3;
+  optional google.protobuf.Timestamp deadline = 4;
+  optional string color = 5;
+  optional string icon = 6;
+}
+
+message CreateGoalResponse {
+  Goal goal = 1;
+}
+
+message ListGoalsRequest {}
+
+message ListGoalsResponse {
+  repeated Goal goals = 1;
+}
+
+message UpdateGoalRequest {
+  string id = 1;
+  optional string name = 2;
+  optional double target_amount = 3;
+  optional string status = 4;
+}
+
+message UpdateGoalResponse {
+  Goal goal = 1;
+}
+
+message DeleteGoalRequest {
+  string id = 1;
+}
+
+message DeleteGoalResponse {}
+
+message AddContributionRequest {
+  string goal_id = 1;
+  double amount = 2;
+  optional string note = 3;
+}
+
+message AddContributionResponse {
+  Goal goal = 1;
+}

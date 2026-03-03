@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service BudgetService {
+  rpc CreateBudget(CreateBudgetRequest) returns (CreateBudgetResponse);
+  rpc ListBudgets(ListBudgetsRequest) returns (ListBudgetsResponse);
+  rpc UpdateBudget(UpdateBudgetRequest) returns (UpdateBudgetResponse);
+  rpc DeleteBudget(DeleteBudgetRequest) returns (DeleteBudgetResponse);
+}
+
+message Budget {
+  string id = 1;
+  string name = 2;
+  double amount = 3;
+  string period = 4; // MONTHLY, WEEKLY
+  google.protobuf.Timestamp start_date = 5;
+  google.protobuf.Timestamp end_date = 6;
+  string categories = 7; // JSON or CSV
+  string user_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateBudgetRequest {
+  string name = 1;
+  double amount = 2;
+  string period = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+  string categories = 6;
+}
+
+message CreateBudgetResponse {
+  Budget budget = 1;
+}
+
+message ListBudgetsRequest {}
+
+message ListBudgetsResponse {
+  repeated Budget budgets = 1;
+}
+
+message UpdateBudgetRequest {
+  string id = 1;
+  optional string name = 2;
+  optional double amount = 3;
+  optional string period = 4;
+  optional string categories = 5;
+}
+
+message UpdateBudgetResponse {
+  Budget budget = 1;
+}
+
+message DeleteBudgetRequest {
+  string id = 1;
+}
+
+message DeleteBudgetResponse {}

@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Paper UI Palette */
+    --paper-1: #FEEED5;
+    --paper-2: #E9DAC5;
+    --ink: #1A1A1A;
+    --taupe: #A2897D;
+    
+    /* Accents */
+    --mustard: #F6DD4D;
+    --cta: #FD712C;
+    --teal: #2EC4B6;
+    --cobalt: #3D5AFE;
+    --pink: #FF4D8D;
+    --grape: #8B5CF6;
+    
+    /* Semantic */
+    --success: #2EC4B6;
+    --warning: #F6DD4D;
+    --danger: #E63946;
+    
+    /* Mapped to existing tokens */
+    --background: var(--paper-1);
+    --foreground: var(--ink);
+    --card: var(--paper-2);
+    --card-foreground: var(--ink);
+    --popover: var(--paper-2);
+    --popover-foreground: var(--ink);
+    --primary: var(--cta);
+    --primary-foreground: var(--ink);
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink);
+    --muted: var(--taupe);
+    --muted-foreground: var(--taupe);
+    --accent: var(--mustard);
+    --accent-foreground: var(--ink);
+    --destructive: var(--danger);
+    --destructive-foreground: var(--paper-1);
+    --border: var(--ink);
+    --input: var(--paper-2);
+    --ring: var(--ink);
+    
+    /* Neo-Brutal specific */
+    --border-width: 1.5px;
+    --border-width-thick: 2px;
+    --shadow-brutal: 4px 4px 0 var(--ink);
+    --shadow-brutal-sm: 2px 2px 0 var(--ink);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-[var(--paper-1)] text-[var(--ink)];
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-fraunces), serif;
+    font-weight: 700;
+  }
+  
+  /* Tabular numbers for amounts */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .border-brutal {
+    border: var(--border-width) solid var(--ink);
+  }
+  
+  .border-brutal-thick {
+    border: var(--border-width-thick) solid var(--ink);
+  }
+  
+  .shadow-brutal {
+    box-shadow: var(--shadow-brutal);
+  }
+  
+  .shadow-brutal-sm {
+    box-shadow: var(--shadow-brutal-sm);
+  }
+  
+  .divider-brutal {
+    border-top: var(--border-width) solid var(--ink);
+    opacity: 0.3;
+  }
+}
