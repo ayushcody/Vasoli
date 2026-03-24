@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
+import { reminderClient } from '@/lib/rpc/clients';
 import { toast } from 'sonner';
+import { Timestamp } from "@bufbuild/protobuf";
 
 export interface Reminder {
   id: string;
@@ -26,20 +27,29 @@ export interface CreateReminderInput {
 
 const REMINDERS_KEY = 'reminders';
 
+function mapReminder(r: any): Reminder {
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    type: r.type as any,
+    dueDate: r.dueDate?.toDate().toISOString() || new Date().toISOString(),
+    status: r.status as any,
+    snoozeUntil: r.snoozeUntil?.toDate().toISOString(),
+    userId: r.userId,
+    createdAt: r.createdAt?.toDate().toISOString() || new Date().toISOString(),
+    updatedAt: r.updatedAt?.toDate().toISOString() || new Date().toISOString(),
+  };
+}
+
 export function useReminders(options: { status?: string; upcoming?: boolean } = {}) {
   const { status, upcoming } = options;
-  
+
   return useQuery({
     queryKey: [REMINDERS_KEY, { status, upcoming }],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      if (upcoming) params.append('upcoming', 'true');
-      
-      const queryString = params.toString();
-      const url = `/reminders${queryString ? `?${queryString}` : ''}`;
-      
-      return apiClient.get<Reminder[]>(url);
+      const res = await reminderClient.listReminders({ status, upcoming });
+      return res.reminders.map(mapReminder);
     },
   });
 }
@@ -48,7 +58,10 @@ export function useReminder(id: string) {
   return useQuery({
     queryKey: [REMINDERS_KEY, id],
     queryFn: async () => {
-      return apiClient.get<Reminder>(`/reminders/${id}`);
+      const res = await reminderClient.listReminders({}); // No direct GetReminder, filtering for now
+      const r = res.reminders.find(r => r.id === id);
+      if (!r) throw new Error("Reminder not found");
+      return mapReminder(r);
     },
     enabled: !!id,
   });
@@ -56,10 +69,16 @@ export function useReminder(id: string) {
 
 export function useCreateReminder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: CreateReminderInput) => {
-      return apiClient.post<Reminder>('/reminders', data);
+      const res = await reminderClient.createReminder({
+        title: data.title,
+        description: data.description,
+        type: data.type,
+        dueDate: Timestamp.fromDate(new Date(data.dueDate)),
+      });
+      return mapReminder(res.reminder);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [REMINDERS_KEY] });
@@ -75,10 +94,16 @@ export function useCreateReminder() {
 
 export function useUpdateReminder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateReminderInput> }) => {
-      return apiClient.patch<Reminder>(`/reminders/${id}`, data);
+      const res = await reminderClient.updateReminder({
+        id,
+        title: data.title,
+        description: data.description,
+        dueDate: data.dueDate ? Timestamp.fromDate(new Date(data.dueDate)) : undefined,
+      });
+      return mapReminder(res.reminder);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [REMINDERS_KEY] });
@@ -95,10 +120,11 @@ export function useUpdateReminder() {
 
 export function useCompleteReminder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiClient.patch<Reminder>(`/reminders/${id}/complete`, {});
+      const res = await reminderClient.completeReminder({ id });
+      return mapReminder(res.reminder);
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: [REMINDERS_KEY] });
@@ -115,10 +141,11 @@ export function useCompleteReminder() {
 
 export function useSnoozeReminder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, until }: { id: string; until: string }) => {
-      return apiClient.patch<Reminder>(`/reminders/${id}/snooze`, { until });
+      const res = await reminderClient.snoozeReminder({ id, until: Timestamp.fromDate(new Date(until)) });
+      return mapReminder(res.reminder);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [REMINDERS_KEY] });
@@ -135,10 +162,11 @@ export function useSnoozeReminder() {
 
 export function useDismissReminder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiClient.patch<Reminder>(`/reminders/${id}/dismiss`, {});
+      const res = await reminderClient.dismissReminder({ id });
+      return mapReminder(res.reminder);
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: [REMINDERS_KEY] });
@@ -155,10 +183,10 @@ export function useDismissReminder() {
 
 export function useDeleteReminder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiClient.delete<void>(`/reminders/${id}`);
+      await reminderClient.deleteReminder({ id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [REMINDERS_KEY] });
@@ -176,13 +204,16 @@ export function useReminderStats() {
   return useQuery({
     queryKey: [REMINDERS_KEY, 'stats'],
     queryFn: async () => {
-      return apiClient.get<{
-        total: number;
-        pending: number;
-        snoozed: number;
-        completed: number;
-        overdue: number;
-      }>('/reminders/stats');
+      // Stub or compute from list
+      const res = await reminderClient.listReminders({});
+      const reminders = res.reminders;
+      return {
+        total: reminders.length,
+        pending: reminders.filter(r => r.status === 'PENDING').length,
+        snoozed: reminders.filter(r => r.status === 'SNOOZED').length,
+        completed: reminders.filter(r => r.status === 'COMPLETED').length,
+        overdue: reminders.filter(r => r.status === 'PENDING' && r.dueDate && r.dueDate.toDate() < new Date()).length,
+      };
     },
     staleTime: 1000 * 60 * 2,
   });

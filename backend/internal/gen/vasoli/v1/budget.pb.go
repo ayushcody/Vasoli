@@ -26,7 +26,7 @@ type Budget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Amount        float64                `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	AmountPaise   int64                  `protobuf:"varint,3,opt,name=amount_paise,json=amountPaise,proto3" json:"amount_paise,omitempty"`
 	Period        string                 `protobuf:"bytes,4,opt,name=period,proto3" json:"period,omitempty"` // MONTHLY, WEEKLY
 	StartDate     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	EndDate       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
@@ -82,9 +82,9 @@ func (x *Budget) GetName() string {
 	return ""
 }
 
-func (x *Budget) GetAmount() float64 {
+func (x *Budget) GetAmountPaise() int64 {
 	if x != nil {
-		return x.Amount
+		return x.AmountPaise
 	}
 	return 0
 }
@@ -141,7 +141,7 @@ func (x *Budget) GetUpdatedAt() *timestamppb.Timestamp {
 type CreateBudgetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	AmountPaise   int64                  `protobuf:"varint,2,opt,name=amount_paise,json=amountPaise,proto3" json:"amount_paise,omitempty"`
 	Period        string                 `protobuf:"bytes,3,opt,name=period,proto3" json:"period,omitempty"`
 	StartDate     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	EndDate       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
@@ -187,9 +187,9 @@ func (x *CreateBudgetRequest) GetName() string {
 	return ""
 }
 
-func (x *CreateBudgetRequest) GetAmount() float64 {
+func (x *CreateBudgetRequest) GetAmountPaise() int64 {
 	if x != nil {
-		return x.Amount
+		return x.AmountPaise
 	}
 	return 0
 }
@@ -350,7 +350,7 @@ type UpdateBudgetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Amount        *float64               `protobuf:"fixed64,3,opt,name=amount,proto3,oneof" json:"amount,omitempty"`
+	AmountPaise   *int64                 `protobuf:"varint,3,opt,name=amount_paise,json=amountPaise,proto3,oneof" json:"amount_paise,omitempty"`
 	Period        *string                `protobuf:"bytes,4,opt,name=period,proto3,oneof" json:"period,omitempty"`
 	Categories    *string                `protobuf:"bytes,5,opt,name=categories,proto3,oneof" json:"categories,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -401,9 +401,9 @@ func (x *UpdateBudgetRequest) GetName() string {
 	return ""
 }
 
-func (x *UpdateBudgetRequest) GetAmount() float64 {
-	if x != nil && x.Amount != nil {
-		return *x.Amount
+func (x *UpdateBudgetRequest) GetAmountPaise() int64 {
+	if x != nil && x.AmountPaise != nil {
+		return *x.AmountPaise
 	}
 	return 0
 }
@@ -550,11 +550,11 @@ var File_vasoli_v1_budget_proto protoreflect.FileDescriptor
 
 const file_vasoli_v1_budget_proto_rawDesc = "" +
 	"\n" +
-	"\x16vasoli/v1/budget.proto\x12\tvasoli.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfd\x02\n" +
+	"\x16vasoli/v1/budget.proto\x12\tvasoli.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x88\x03\n" +
 	"\x06Budget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06amount\x18\x03 \x01(\x01R\x06amount\x12\x16\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\famount_paise\x18\x03 \x01(\x03R\vamountPaise\x12\x16\n" +
 	"\x06period\x18\x04 \x01(\tR\x06period\x129\n" +
 	"\n" +
 	"start_date\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartDate\x125\n" +
@@ -567,10 +567,10 @@ const file_vasoli_v1_budget_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xeb\x01\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf6\x01\n" +
 	"\x13CreateBudgetRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x01R\x06amount\x12\x16\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\famount_paise\x18\x02 \x01(\x03R\vamountPaise\x12\x16\n" +
 	"\x06period\x18\x03 \x01(\tR\x06period\x129\n" +
 	"\n" +
 	"start_date\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartDate\x125\n" +
@@ -582,17 +582,17 @@ const file_vasoli_v1_budget_proto_rawDesc = "" +
 	"\x06budget\x18\x01 \x01(\v2\x11.vasoli.v1.BudgetR\x06budget\"\x14\n" +
 	"\x12ListBudgetsRequest\"B\n" +
 	"\x13ListBudgetsResponse\x12+\n" +
-	"\abudgets\x18\x01 \x03(\v2\x11.vasoli.v1.BudgetR\abudgets\"\xcb\x01\n" +
+	"\abudgets\x18\x01 \x03(\v2\x11.vasoli.v1.BudgetR\abudgets\"\xdc\x01\n" +
 	"\x13UpdateBudgetRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1b\n" +
-	"\x06amount\x18\x03 \x01(\x01H\x01R\x06amount\x88\x01\x01\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12&\n" +
+	"\famount_paise\x18\x03 \x01(\x03H\x01R\vamountPaise\x88\x01\x01\x12\x1b\n" +
 	"\x06period\x18\x04 \x01(\tH\x02R\x06period\x88\x01\x01\x12#\n" +
 	"\n" +
 	"categories\x18\x05 \x01(\tH\x03R\n" +
 	"categories\x88\x01\x01B\a\n" +
-	"\x05_nameB\t\n" +
-	"\a_amountB\t\n" +
+	"\x05_nameB\x0f\n" +
+	"\r_amount_paiseB\t\n" +
 	"\a_periodB\r\n" +
 	"\v_categories\"A\n" +
 	"\x14UpdateBudgetResponse\x12)\n" +

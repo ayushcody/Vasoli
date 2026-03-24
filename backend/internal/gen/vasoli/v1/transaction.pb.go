@@ -25,7 +25,7 @@ const (
 type Transaction struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	AmountPaise   int64                  `protobuf:"varint,2,opt,name=amount_paise,json=amountPaise,proto3" json:"amount_paise,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Date          *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=date,proto3" json:"date,omitempty"`
 	Type          string                 `protobuf:"bytes,5,opt,name=type,proto3" json:"type,omitempty"` // e.g., "EXPENSE", "INCOME"
@@ -39,6 +39,13 @@ type Transaction struct {
 	CategoryId    *string                `protobuf:"bytes,13,opt,name=category_id,json=categoryId,proto3,oneof" json:"category_id,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// New fields
+	MerchantRaw   string   `protobuf:"bytes,16,opt,name=merchant_raw,json=merchantRaw,proto3" json:"merchant_raw,omitempty"`
+	MerchantNorm  string   `protobuf:"bytes,17,opt,name=merchant_norm,json=merchantNorm,proto3" json:"merchant_norm,omitempty"`
+	Status        string   `protobuf:"bytes,18,opt,name=status,proto3" json:"status,omitempty"`
+	Provenance    string   `protobuf:"bytes,19,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Tags          []string `protobuf:"bytes,20,rep,name=tags,proto3" json:"tags,omitempty"`
+	UpiRef        *string  `protobuf:"bytes,21,opt,name=upi_ref,json=upiRef,proto3,oneof" json:"upi_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -80,9 +87,9 @@ func (x *Transaction) GetId() string {
 	return ""
 }
 
-func (x *Transaction) GetAmount() float64 {
+func (x *Transaction) GetAmountPaise() int64 {
 	if x != nil {
-		return x.Amount
+		return x.AmountPaise
 	}
 	return 0
 }
@@ -178,9 +185,51 @@ func (x *Transaction) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Transaction) GetMerchantRaw() string {
+	if x != nil {
+		return x.MerchantRaw
+	}
+	return ""
+}
+
+func (x *Transaction) GetMerchantNorm() string {
+	if x != nil {
+		return x.MerchantNorm
+	}
+	return ""
+}
+
+func (x *Transaction) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Transaction) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *Transaction) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *Transaction) GetUpiRef() string {
+	if x != nil && x.UpiRef != nil {
+		return *x.UpiRef
+	}
+	return ""
+}
+
 type CreateTransactionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Amount        float64                `protobuf:"fixed64,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	AmountPaise   int64                  `protobuf:"varint,1,opt,name=amount_paise,json=amountPaise,proto3" json:"amount_paise,omitempty"`
 	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	Date          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
 	Type          string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
@@ -189,6 +238,12 @@ type CreateTransactionRequest struct {
 	PaymentMethod *string                `protobuf:"bytes,7,opt,name=payment_method,json=paymentMethod,proto3,oneof" json:"payment_method,omitempty"`
 	UpiId         *string                `protobuf:"bytes,8,opt,name=upi_id,json=upiId,proto3,oneof" json:"upi_id,omitempty"`
 	BankRrn       *string                `protobuf:"bytes,9,opt,name=bank_rrn,json=bankRrn,proto3,oneof" json:"bank_rrn,omitempty"`
+	MerchantRaw   string                 `protobuf:"bytes,10,opt,name=merchant_raw,json=merchantRaw,proto3" json:"merchant_raw,omitempty"`
+	MerchantNorm  string                 `protobuf:"bytes,11,opt,name=merchant_norm,json=merchantNorm,proto3" json:"merchant_norm,omitempty"`
+	Status        string                 `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
+	Provenance    string                 `protobuf:"bytes,13,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Tags          []string               `protobuf:"bytes,14,rep,name=tags,proto3" json:"tags,omitempty"`
+	UpiRef        *string                `protobuf:"bytes,15,opt,name=upi_ref,json=upiRef,proto3,oneof" json:"upi_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -223,9 +278,9 @@ func (*CreateTransactionRequest) Descriptor() ([]byte, []int) {
 	return file_vasoli_v1_transaction_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CreateTransactionRequest) GetAmount() float64 {
+func (x *CreateTransactionRequest) GetAmountPaise() int64 {
 	if x != nil {
-		return x.Amount
+		return x.AmountPaise
 	}
 	return 0
 }
@@ -282,6 +337,48 @@ func (x *CreateTransactionRequest) GetUpiId() string {
 func (x *CreateTransactionRequest) GetBankRrn() string {
 	if x != nil && x.BankRrn != nil {
 		return *x.BankRrn
+	}
+	return ""
+}
+
+func (x *CreateTransactionRequest) GetMerchantRaw() string {
+	if x != nil {
+		return x.MerchantRaw
+	}
+	return ""
+}
+
+func (x *CreateTransactionRequest) GetMerchantNorm() string {
+	if x != nil {
+		return x.MerchantNorm
+	}
+	return ""
+}
+
+func (x *CreateTransactionRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CreateTransactionRequest) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *CreateTransactionRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *CreateTransactionRequest) GetUpiRef() string {
+	if x != nil && x.UpiRef != nil {
+		return *x.UpiRef
 	}
 	return ""
 }
@@ -541,7 +638,7 @@ func (x *ListTransactionsResponse) GetNextPageToken() string {
 type UpdateTransactionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Amount        *float64               `protobuf:"fixed64,2,opt,name=amount,proto3,oneof" json:"amount,omitempty"`
+	AmountPaise   *int64                 `protobuf:"varint,2,opt,name=amount_paise,json=amountPaise,proto3,oneof" json:"amount_paise,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Date          *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=date,proto3,oneof" json:"date,omitempty"`
 	Type          *string                `protobuf:"bytes,5,opt,name=type,proto3,oneof" json:"type,omitempty"`
@@ -549,6 +646,12 @@ type UpdateTransactionRequest struct {
 	PaymentMethod *string                `protobuf:"bytes,7,opt,name=payment_method,json=paymentMethod,proto3,oneof" json:"payment_method,omitempty"`
 	UpiId         *string                `protobuf:"bytes,8,opt,name=upi_id,json=upiId,proto3,oneof" json:"upi_id,omitempty"`
 	BankRrn       *string                `protobuf:"bytes,9,opt,name=bank_rrn,json=bankRrn,proto3,oneof" json:"bank_rrn,omitempty"`
+	MerchantRaw   *string                `protobuf:"bytes,10,opt,name=merchant_raw,json=merchantRaw,proto3,oneof" json:"merchant_raw,omitempty"`
+	MerchantNorm  *string                `protobuf:"bytes,11,opt,name=merchant_norm,json=merchantNorm,proto3,oneof" json:"merchant_norm,omitempty"`
+	Status        *string                `protobuf:"bytes,12,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	Provenance    *string                `protobuf:"bytes,13,opt,name=provenance,proto3,oneof" json:"provenance,omitempty"`
+	Tags          []string               `protobuf:"bytes,14,rep,name=tags,proto3" json:"tags,omitempty"`
+	UpiRef        *string                `protobuf:"bytes,15,opt,name=upi_ref,json=upiRef,proto3,oneof" json:"upi_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -590,9 +693,9 @@ func (x *UpdateTransactionRequest) GetId() string {
 	return ""
 }
 
-func (x *UpdateTransactionRequest) GetAmount() float64 {
-	if x != nil && x.Amount != nil {
-		return *x.Amount
+func (x *UpdateTransactionRequest) GetAmountPaise() int64 {
+	if x != nil && x.AmountPaise != nil {
+		return *x.AmountPaise
 	}
 	return 0
 }
@@ -642,6 +745,48 @@ func (x *UpdateTransactionRequest) GetUpiId() string {
 func (x *UpdateTransactionRequest) GetBankRrn() string {
 	if x != nil && x.BankRrn != nil {
 		return *x.BankRrn
+	}
+	return ""
+}
+
+func (x *UpdateTransactionRequest) GetMerchantRaw() string {
+	if x != nil && x.MerchantRaw != nil {
+		return *x.MerchantRaw
+	}
+	return ""
+}
+
+func (x *UpdateTransactionRequest) GetMerchantNorm() string {
+	if x != nil && x.MerchantNorm != nil {
+		return *x.MerchantNorm
+	}
+	return ""
+}
+
+func (x *UpdateTransactionRequest) GetStatus() string {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return ""
+}
+
+func (x *UpdateTransactionRequest) GetProvenance() string {
+	if x != nil && x.Provenance != nil {
+		return *x.Provenance
+	}
+	return ""
+}
+
+func (x *UpdateTransactionRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *UpdateTransactionRequest) GetUpiRef() string {
+	if x != nil && x.UpiRef != nil {
+		return *x.UpiRef
 	}
 	return ""
 }
@@ -774,10 +919,10 @@ var File_vasoli_v1_transaction_proto protoreflect.FileDescriptor
 
 const file_vasoli_v1_transaction_proto_rawDesc = "" +
 	"\n" +
-	"\x1bvasoli/v1/transaction.proto\x12\tvasoli.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\x04\n" +
+	"\x1bvasoli/v1/transaction.proto\x12\tvasoli.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x06\n" +
 	"\vTransaction\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x01R\x06amount\x12 \n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\famount_paise\x18\x02 \x01(\x03R\vamountPaise\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12.\n" +
 	"\x04date\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x04date\x12\x12\n" +
 	"\x04type\x18\x05 \x01(\tR\x04type\x12$\n" +
@@ -795,14 +940,24 @@ const file_vasoli_v1_transaction_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
+	"\fmerchant_raw\x18\x10 \x01(\tR\vmerchantRaw\x12#\n" +
+	"\rmerchant_norm\x18\x11 \x01(\tR\fmerchantNorm\x12\x16\n" +
+	"\x06status\x18\x12 \x01(\tR\x06status\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\x13 \x01(\tR\n" +
+	"provenance\x12\x12\n" +
+	"\x04tags\x18\x14 \x03(\tR\x04tags\x12\x1c\n" +
+	"\aupi_ref\x18\x15 \x01(\tH\x05R\x06upiRef\x88\x01\x01B\x0e\n" +
 	"\f_receipt_urlB\t\n" +
 	"\a_upi_idB\v\n" +
 	"\t_bank_rrnB\x0f\n" +
 	"\r_recurring_idB\x0e\n" +
-	"\f_category_id\"\x97\x03\n" +
-	"\x18CreateTransactionRequest\x12\x16\n" +
-	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12 \n" +
+	"\f_category_idB\n" +
+	"\n" +
+	"\b_upi_ref\"\xe0\x04\n" +
+	"\x18CreateTransactionRequest\x12!\n" +
+	"\famount_paise\x18\x01 \x01(\x03R\vamountPaise\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12.\n" +
 	"\x04date\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x04date\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12$\n" +
@@ -812,12 +967,23 @@ const file_vasoli_v1_transaction_proto_rawDesc = "" +
 	"receiptUrl\x88\x01\x01\x12*\n" +
 	"\x0epayment_method\x18\a \x01(\tH\x02R\rpaymentMethod\x88\x01\x01\x12\x1a\n" +
 	"\x06upi_id\x18\b \x01(\tH\x03R\x05upiId\x88\x01\x01\x12\x1e\n" +
-	"\bbank_rrn\x18\t \x01(\tH\x04R\abankRrn\x88\x01\x01B\x0e\n" +
+	"\bbank_rrn\x18\t \x01(\tH\x04R\abankRrn\x88\x01\x01\x12!\n" +
+	"\fmerchant_raw\x18\n" +
+	" \x01(\tR\vmerchantRaw\x12#\n" +
+	"\rmerchant_norm\x18\v \x01(\tR\fmerchantNorm\x12\x16\n" +
+	"\x06status\x18\f \x01(\tR\x06status\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\r \x01(\tR\n" +
+	"provenance\x12\x12\n" +
+	"\x04tags\x18\x0e \x03(\tR\x04tags\x12\x1c\n" +
+	"\aupi_ref\x18\x0f \x01(\tH\x05R\x06upiRef\x88\x01\x01B\x0e\n" +
 	"\f_category_idB\x0e\n" +
 	"\f_receipt_urlB\x11\n" +
 	"\x0f_payment_methodB\t\n" +
 	"\a_upi_idB\v\n" +
-	"\t_bank_rrn\"U\n" +
+	"\t_bank_rrnB\n" +
+	"\n" +
+	"\b_upi_ref\"U\n" +
 	"\x19CreateTransactionResponse\x128\n" +
 	"\vtransaction\x18\x01 \x01(\v2\x16.vasoli.v1.TransactionR\vtransaction\"'\n" +
 	"\x15GetTransactionRequest\x12\x0e\n" +
@@ -835,10 +1001,10 @@ const file_vasoli_v1_transaction_proto_rawDesc = "" +
 	"\f_category_id\"~\n" +
 	"\x18ListTransactionsResponse\x12:\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x16.vasoli.v1.TransactionR\ftransactions\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb2\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd2\x05\n" +
 	"\x18UpdateTransactionRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\x06amount\x18\x02 \x01(\x01H\x00R\x06amount\x88\x01\x01\x12%\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
+	"\famount_paise\x18\x02 \x01(\x03H\x00R\vamountPaise\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x123\n" +
 	"\x04date\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x02R\x04date\x88\x01\x01\x12\x17\n" +
 	"\x04type\x18\x05 \x01(\tH\x03R\x04type\x88\x01\x01\x12$\n" +
@@ -846,15 +1012,31 @@ const file_vasoli_v1_transaction_proto_rawDesc = "" +
 	"categoryId\x88\x01\x01\x12*\n" +
 	"\x0epayment_method\x18\a \x01(\tH\x05R\rpaymentMethod\x88\x01\x01\x12\x1a\n" +
 	"\x06upi_id\x18\b \x01(\tH\x06R\x05upiId\x88\x01\x01\x12\x1e\n" +
-	"\bbank_rrn\x18\t \x01(\tH\aR\abankRrn\x88\x01\x01B\t\n" +
-	"\a_amountB\x0e\n" +
+	"\bbank_rrn\x18\t \x01(\tH\aR\abankRrn\x88\x01\x01\x12&\n" +
+	"\fmerchant_raw\x18\n" +
+	" \x01(\tH\bR\vmerchantRaw\x88\x01\x01\x12(\n" +
+	"\rmerchant_norm\x18\v \x01(\tH\tR\fmerchantNorm\x88\x01\x01\x12\x1b\n" +
+	"\x06status\x18\f \x01(\tH\n" +
+	"R\x06status\x88\x01\x01\x12#\n" +
+	"\n" +
+	"provenance\x18\r \x01(\tH\vR\n" +
+	"provenance\x88\x01\x01\x12\x12\n" +
+	"\x04tags\x18\x0e \x03(\tR\x04tags\x12\x1c\n" +
+	"\aupi_ref\x18\x0f \x01(\tH\fR\x06upiRef\x88\x01\x01B\x0f\n" +
+	"\r_amount_paiseB\x0e\n" +
 	"\f_descriptionB\a\n" +
 	"\x05_dateB\a\n" +
 	"\x05_typeB\x0e\n" +
 	"\f_category_idB\x11\n" +
 	"\x0f_payment_methodB\t\n" +
 	"\a_upi_idB\v\n" +
-	"\t_bank_rrn\"U\n" +
+	"\t_bank_rrnB\x0f\n" +
+	"\r_merchant_rawB\x10\n" +
+	"\x0e_merchant_normB\t\n" +
+	"\a_statusB\r\n" +
+	"\v_provenanceB\n" +
+	"\n" +
+	"\b_upi_ref\"U\n" +
 	"\x19UpdateTransactionResponse\x128\n" +
 	"\vtransaction\x18\x01 \x01(\v2\x16.vasoli.v1.TransactionR\vtransaction\"*\n" +
 	"\x18DeleteTransactionRequest\x12\x0e\n" +

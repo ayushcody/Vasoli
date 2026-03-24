@@ -7,174 +7,855 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createTransaction = `-- name: CreateTransaction :one
-INSERT INTO public.transactions (
-    amount, description, date, type, receipturl,
-    paymentmethod, upiid, bankrrn, 
-    isrecurring, recurringid, userid, categoryid
+const addGoalContribution = `-- name: AddGoalContribution :one
+INSERT INTO goal_contributions (
+    goal_id, amount_paise, note
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+    $1, $2, $3
 )
-RETURNING id, amount, description, date, type, receipturl, paymentmethod, upiid, bankrrn, isrecurring, recurringid, userid, categoryid, createdat, updatedat
+RETURNING id, goal_id, amount_paise, note, created_at
 `
 
-type CreateTransactionParams struct {
-	Amount        float64        `json:"amount"`
-	Description   string         `json:"description"`
-	Date          time.Time      `json:"date"`
-	Type          sql.NullString `json:"type"`
-	Receipturl    sql.NullString `json:"receipturl"`
-	Paymentmethod sql.NullString `json:"paymentmethod"`
-	Upiid         sql.NullString `json:"upiid"`
-	Bankrrn       sql.NullString `json:"bankrrn"`
-	Isrecurring   sql.NullBool   `json:"isrecurring"`
-	Recurringid   uuid.NullUUID  `json:"recurringid"`
-	Userid        uuid.UUID      `json:"userid"`
-	Categoryid    uuid.NullUUID  `json:"categoryid"`
+type AddGoalContributionParams struct {
+	GoalID      pgtype.UUID `json:"goal_id"`
+	AmountPaise int64       `json:"amount_paise"`
+	Note        pgtype.Text `json:"note"`
 }
 
-func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error) {
-	row := q.db.QueryRowContext(ctx, createTransaction,
-		arg.Amount,
-		arg.Description,
-		arg.Date,
-		arg.Type,
-		arg.Receipturl,
-		arg.Paymentmethod,
-		arg.Upiid,
-		arg.Bankrrn,
-		arg.Isrecurring,
-		arg.Recurringid,
-		arg.Userid,
-		arg.Categoryid,
-	)
-	var i Transaction
+func (q *Queries) AddGoalContribution(ctx context.Context, arg AddGoalContributionParams) (GoalContribution, error) {
+	row := q.db.QueryRow(ctx, addGoalContribution, arg.GoalID, arg.AmountPaise, arg.Note)
+	var i GoalContribution
 	err := row.Scan(
 		&i.ID,
-		&i.Amount,
-		&i.Description,
-		&i.Date,
-		&i.Type,
-		&i.Receipturl,
-		&i.Paymentmethod,
-		&i.Upiid,
-		&i.Bankrrn,
-		&i.Isrecurring,
-		&i.Recurringid,
-		&i.Userid,
-		&i.Categoryid,
-		&i.Createdat,
-		&i.Updatedat,
+		&i.GoalID,
+		&i.AmountPaise,
+		&i.Note,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
-const deleteTransaction = `-- name: DeleteTransaction :exec
-DELETE FROM public.transactions
-WHERE id = $1 AND userid = $2
-`
-
-type DeleteTransactionParams struct {
-	ID     uuid.UUID `json:"id"`
-	Userid uuid.UUID `json:"userid"`
+type BulkCreateTransactionsParams struct {
+	UserID        pgtype.UUID        `json:"user_id"`
+	AmountPaise   int64              `json:"amount_paise"`
+	Description   string             `json:"description"`
+	MerchantRaw   string             `json:"merchant_raw"`
+	MerchantNorm  string             `json:"merchant_norm"`
+	Date          pgtype.Timestamptz `json:"date"`
+	Type          string             `json:"type"`
+	Status        string             `json:"status"`
+	Provenance    string             `json:"provenance"`
+	CategoryID    pgtype.UUID        `json:"category_id"`
+	Tags          []string           `json:"tags"`
+	PaymentMethod pgtype.Text        `json:"payment_method"`
+	UpiID         pgtype.Text        `json:"upi_id"`
+	UpiRef        pgtype.Text        `json:"upi_ref"`
+	BankRrn       pgtype.Text        `json:"bank_rrn"`
+	IsRecurring   pgtype.Bool        `json:"is_recurring"`
+	RecurringID   pgtype.UUID        `json:"recurring_id"`
+	ReceiptUrl    pgtype.Text        `json:"receipt_url"`
+	ReceiptID     pgtype.UUID        `json:"receipt_id"`
+	ImportBatchID pgtype.UUID        `json:"import_batch_id"`
 }
 
-func (q *Queries) DeleteTransaction(ctx context.Context, arg DeleteTransactionParams) error {
-	_, err := q.db.ExecContext(ctx, deleteTransaction, arg.ID, arg.Userid)
-	return err
-}
-
-const getTransaction = `-- name: GetTransaction :one
-SELECT id, amount, description, date, type, receipturl, paymentmethod, upiid, bankrrn, isrecurring, recurringid, userid, categoryid, createdat, updatedat FROM public.transactions
-WHERE id = $1 LIMIT 1
+const createCategoryRule = `-- name: CreateCategoryRule :one
+INSERT INTO category_rules (user_id, merchant_norm, category_id, confidence, last_used)
+VALUES ($1, $2, $3, $4, NOW())
+ON CONFLICT (user_id, merchant_norm)
+DO UPDATE SET category_id = EXCLUDED.category_id, confidence = EXCLUDED.confidence, last_used = NOW()
+RETURNING id, user_id, merchant_norm, category_id, confidence, last_used, created_at
 `
 
-func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (Transaction, error) {
-	row := q.db.QueryRowContext(ctx, getTransaction, id)
+type CreateCategoryRuleParams struct {
+	UserID       pgtype.UUID `json:"user_id"`
+	MerchantNorm string      `json:"merchant_norm"`
+	CategoryID   pgtype.UUID `json:"category_id"`
+	Confidence   float64     `json:"confidence"`
+}
+
+func (q *Queries) CreateCategoryRule(ctx context.Context, arg CreateCategoryRuleParams) (CategoryRule, error) {
+	row := q.db.QueryRow(ctx, createCategoryRule,
+		arg.UserID,
+		arg.MerchantNorm,
+		arg.CategoryID,
+		arg.Confidence,
+	)
+	var i CategoryRule
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.MerchantNorm,
+		&i.CategoryID,
+		&i.Confidence,
+		&i.LastUsed,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createGoal = `-- name: CreateGoal :one
+INSERT INTO goals (
+    user_id, name, description, target_amount_paise, due_date, color, icon, cadence, active
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING id, user_id, name, description, target_amount_paise, current_amount_paise, due_date, status, color, icon, cadence, active, created_at, updated_at
+`
+
+type CreateGoalParams struct {
+	UserID            pgtype.UUID        `json:"user_id"`
+	Name              string             `json:"name"`
+	Description       pgtype.Text        `json:"description"`
+	TargetAmountPaise int64              `json:"target_amount_paise"`
+	DueDate           pgtype.Timestamptz `json:"due_date"`
+	Color             pgtype.Text        `json:"color"`
+	Icon              pgtype.Text        `json:"icon"`
+	Cadence           pgtype.Text        `json:"cadence"`
+	Active            bool               `json:"active"`
+}
+
+func (q *Queries) CreateGoal(ctx context.Context, arg CreateGoalParams) (Goal, error) {
+	row := q.db.QueryRow(ctx, createGoal,
+		arg.UserID,
+		arg.Name,
+		arg.Description,
+		arg.TargetAmountPaise,
+		arg.DueDate,
+		arg.Color,
+		arg.Icon,
+		arg.Cadence,
+		arg.Active,
+	)
+	var i Goal
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.TargetAmountPaise,
+		&i.CurrentAmountPaise,
+		&i.DueDate,
+		&i.Status,
+		&i.Color,
+		&i.Icon,
+		&i.Cadence,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createImportBatch = `-- name: CreateImportBatch :one
+INSERT INTO import_batches (user_id, file_hash, bank_format, parsed_count, created_count, matched_count)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, file_hash, bank_format, parsed_count, created_count, matched_count, created_at
+`
+
+type CreateImportBatchParams struct {
+	UserID       pgtype.UUID `json:"user_id"`
+	FileHash     string      `json:"file_hash"`
+	BankFormat   string      `json:"bank_format"`
+	ParsedCount  int32       `json:"parsed_count"`
+	CreatedCount int32       `json:"created_count"`
+	MatchedCount int32       `json:"matched_count"`
+}
+
+func (q *Queries) CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error) {
+	row := q.db.QueryRow(ctx, createImportBatch,
+		arg.UserID,
+		arg.FileHash,
+		arg.BankFormat,
+		arg.ParsedCount,
+		arg.CreatedCount,
+		arg.MatchedCount,
+	)
+	var i ImportBatch
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FileHash,
+		&i.BankFormat,
+		&i.ParsedCount,
+		&i.CreatedCount,
+		&i.MatchedCount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createMerchantAlias = `-- name: CreateMerchantAlias :one
+INSERT INTO merchant_aliases (user_id, raw_pattern, merchant_norm)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, raw_pattern)
+DO UPDATE SET merchant_norm = EXCLUDED.merchant_norm
+RETURNING id, user_id, raw_pattern, merchant_norm, created_at
+`
+
+type CreateMerchantAliasParams struct {
+	UserID       pgtype.UUID `json:"user_id"`
+	RawPattern   string      `json:"raw_pattern"`
+	MerchantNorm string      `json:"merchant_norm"`
+}
+
+func (q *Queries) CreateMerchantAlias(ctx context.Context, arg CreateMerchantAliasParams) (MerchantAlias, error) {
+	row := q.db.QueryRow(ctx, createMerchantAlias, arg.UserID, arg.RawPattern, arg.MerchantNorm)
+	var i MerchantAlias
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.RawPattern,
+		&i.MerchantNorm,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createReceipt = `-- name: CreateReceipt :one
+INSERT INTO receipts (
+    user_id, merchant, amount_paise, purchase_date, return_by, warranty_until, reimbursable, ocr_payload_encrypted
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8
+)
+RETURNING id, user_id, merchant, amount_paise, purchase_date, return_by, warranty_until, reimbursable, ocr_payload_encrypted, created_at, snoozed_until
+`
+
+type CreateReceiptParams struct {
+	UserID              pgtype.UUID        `json:"user_id"`
+	Merchant            string             `json:"merchant"`
+	AmountPaise         int64              `json:"amount_paise"`
+	PurchaseDate        pgtype.Timestamptz `json:"purchase_date"`
+	ReturnBy            pgtype.Timestamptz `json:"return_by"`
+	WarrantyUntil       pgtype.Timestamptz `json:"warranty_until"`
+	Reimbursable        bool               `json:"reimbursable"`
+	OcrPayloadEncrypted string             `json:"ocr_payload_encrypted"`
+}
+
+func (q *Queries) CreateReceipt(ctx context.Context, arg CreateReceiptParams) (Receipt, error) {
+	row := q.db.QueryRow(ctx, createReceipt,
+		arg.UserID,
+		arg.Merchant,
+		arg.AmountPaise,
+		arg.PurchaseDate,
+		arg.ReturnBy,
+		arg.WarrantyUntil,
+		arg.Reimbursable,
+		arg.OcrPayloadEncrypted,
+	)
+	var i Receipt
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Merchant,
+		&i.AmountPaise,
+		&i.PurchaseDate,
+		&i.ReturnBy,
+		&i.WarrantyUntil,
+		&i.Reimbursable,
+		&i.OcrPayloadEncrypted,
+		&i.CreatedAt,
+		&i.SnoozedUntil,
+	)
+	return i, err
+}
+
+const createRecurringRule = `-- name: CreateRecurringRule :one
+INSERT INTO recurring_rules (user_id, merchant_norm, amount_paise, cadence, next_due_date, active)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at
+`
+
+type CreateRecurringRuleParams struct {
+	UserID       pgtype.UUID        `json:"user_id"`
+	MerchantNorm string             `json:"merchant_norm"`
+	AmountPaise  int64              `json:"amount_paise"`
+	Cadence      string             `json:"cadence"`
+	NextDueDate  pgtype.Timestamptz `json:"next_due_date"`
+	Active       bool               `json:"active"`
+}
+
+func (q *Queries) CreateRecurringRule(ctx context.Context, arg CreateRecurringRuleParams) (RecurringRule, error) {
+	row := q.db.QueryRow(ctx, createRecurringRule,
+		arg.UserID,
+		arg.MerchantNorm,
+		arg.AmountPaise,
+		arg.Cadence,
+		arg.NextDueDate,
+		arg.Active,
+	)
+	var i RecurringRule
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.MerchantNorm,
+		&i.AmountPaise,
+		&i.Cadence,
+		&i.NextDueDate,
+		&i.Active,
+		&i.SnoozedUntil,
+		&i.CancelledAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createTransaction = `-- name: CreateTransaction :one
+INSERT INTO transactions (
+    user_id, amount_paise, description, merchant_raw, merchant_norm, date, type, status, provenance, category_id, tags, payment_method, upi_id, upi_ref, bank_rrn, is_recurring, recurring_id, receipt_url, receipt_id, import_batch_id
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+)
+RETURNING id, user_id, amount_paise, description, merchant_raw, merchant_norm, date, type, status, provenance, category_id, tags, payment_method, upi_id, upi_ref, bank_rrn, is_recurring, recurring_id, receipt_url, receipt_id, import_batch_id, created_at, updated_at
+`
+
+type CreateTransactionParams struct {
+	UserID        pgtype.UUID        `json:"user_id"`
+	AmountPaise   int64              `json:"amount_paise"`
+	Description   string             `json:"description"`
+	MerchantRaw   string             `json:"merchant_raw"`
+	MerchantNorm  string             `json:"merchant_norm"`
+	Date          pgtype.Timestamptz `json:"date"`
+	Type          string             `json:"type"`
+	Status        string             `json:"status"`
+	Provenance    string             `json:"provenance"`
+	CategoryID    pgtype.UUID        `json:"category_id"`
+	Tags          []string           `json:"tags"`
+	PaymentMethod pgtype.Text        `json:"payment_method"`
+	UpiID         pgtype.Text        `json:"upi_id"`
+	UpiRef        pgtype.Text        `json:"upi_ref"`
+	BankRrn       pgtype.Text        `json:"bank_rrn"`
+	IsRecurring   pgtype.Bool        `json:"is_recurring"`
+	RecurringID   pgtype.UUID        `json:"recurring_id"`
+	ReceiptUrl    pgtype.Text        `json:"receipt_url"`
+	ReceiptID     pgtype.UUID        `json:"receipt_id"`
+	ImportBatchID pgtype.UUID        `json:"import_batch_id"`
+}
+
+func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error) {
+	row := q.db.QueryRow(ctx, createTransaction,
+		arg.UserID,
+		arg.AmountPaise,
+		arg.Description,
+		arg.MerchantRaw,
+		arg.MerchantNorm,
+		arg.Date,
+		arg.Type,
+		arg.Status,
+		arg.Provenance,
+		arg.CategoryID,
+		arg.Tags,
+		arg.PaymentMethod,
+		arg.UpiID,
+		arg.UpiRef,
+		arg.BankRrn,
+		arg.IsRecurring,
+		arg.RecurringID,
+		arg.ReceiptUrl,
+		arg.ReceiptID,
+		arg.ImportBatchID,
+	)
 	var i Transaction
 	err := row.Scan(
 		&i.ID,
-		&i.Amount,
+		&i.UserID,
+		&i.AmountPaise,
 		&i.Description,
+		&i.MerchantRaw,
+		&i.MerchantNorm,
 		&i.Date,
 		&i.Type,
-		&i.Receipturl,
-		&i.Paymentmethod,
-		&i.Upiid,
-		&i.Bankrrn,
-		&i.Isrecurring,
-		&i.Recurringid,
-		&i.Userid,
-		&i.Categoryid,
-		&i.Createdat,
-		&i.Updatedat,
+		&i.Status,
+		&i.Provenance,
+		&i.CategoryID,
+		&i.Tags,
+		&i.PaymentMethod,
+		&i.UpiID,
+		&i.UpiRef,
+		&i.BankRrn,
+		&i.IsRecurring,
+		&i.RecurringID,
+		&i.ReceiptUrl,
+		&i.ReceiptID,
+		&i.ImportBatchID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteGoal = `-- name: DeleteGoal :exec
+DELETE FROM goals
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteGoalParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteGoal(ctx context.Context, arg DeleteGoalParams) error {
+	_, err := q.db.Exec(ctx, deleteGoal, arg.ID, arg.UserID)
+	return err
+}
+
+const deleteTransaction = `-- name: DeleteTransaction :exec
+DELETE FROM transactions
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteTransactionParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteTransaction(ctx context.Context, arg DeleteTransactionParams) error {
+	_, err := q.db.Exec(ctx, deleteTransaction, arg.ID, arg.UserID)
+	return err
+}
+
+const getCategoryRule = `-- name: GetCategoryRule :one
+SELECT id, user_id, merchant_norm, category_id, confidence, last_used, created_at FROM category_rules
+WHERE user_id = $1 AND merchant_norm = $2 LIMIT 1
+`
+
+type GetCategoryRuleParams struct {
+	UserID       pgtype.UUID `json:"user_id"`
+	MerchantNorm string      `json:"merchant_norm"`
+}
+
+func (q *Queries) GetCategoryRule(ctx context.Context, arg GetCategoryRuleParams) (CategoryRule, error) {
+	row := q.db.QueryRow(ctx, getCategoryRule, arg.UserID, arg.MerchantNorm)
+	var i CategoryRule
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.MerchantNorm,
+		&i.CategoryID,
+		&i.Confidence,
+		&i.LastUsed,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getGoal = `-- name: GetGoal :one
+SELECT id, user_id, name, description, target_amount_paise, current_amount_paise, due_date, status, color, icon, cadence, active, created_at, updated_at FROM goals
+WHERE id = $1 AND user_id = $2 LIMIT 1
+`
+
+type GetGoalParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetGoal(ctx context.Context, arg GetGoalParams) (Goal, error) {
+	row := q.db.QueryRow(ctx, getGoal, arg.ID, arg.UserID)
+	var i Goal
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.TargetAmountPaise,
+		&i.CurrentAmountPaise,
+		&i.DueDate,
+		&i.Status,
+		&i.Color,
+		&i.Icon,
+		&i.Cadence,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getGoalContributions = `-- name: GetGoalContributions :many
+SELECT id, goal_id, amount_paise, note, created_at FROM goal_contributions
+WHERE goal_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetGoalContributions(ctx context.Context, goalID pgtype.UUID) ([]GoalContribution, error) {
+	rows, err := q.db.Query(ctx, getGoalContributions, goalID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GoalContribution
+	for rows.Next() {
+		var i GoalContribution
+		if err := rows.Scan(
+			&i.ID,
+			&i.GoalID,
+			&i.AmountPaise,
+			&i.Note,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecurringRule = `-- name: GetRecurringRule :one
+SELECT id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at FROM recurring_rules 
+WHERE id = $1 AND user_id = $2
+`
+
+type GetRecurringRuleParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetRecurringRule(ctx context.Context, arg GetRecurringRuleParams) (RecurringRule, error) {
+	row := q.db.QueryRow(ctx, getRecurringRule, arg.ID, arg.UserID)
+	var i RecurringRule
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.MerchantNorm,
+		&i.AmountPaise,
+		&i.Cadence,
+		&i.NextDueDate,
+		&i.Active,
+		&i.SnoozedUntil,
+		&i.CancelledAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getTransaction = `-- name: GetTransaction :one
+SELECT id, user_id, amount_paise, description, merchant_raw, merchant_norm, date, type, status, provenance, category_id, tags, payment_method, upi_id, upi_ref, bank_rrn, is_recurring, recurring_id, receipt_url, receipt_id, import_batch_id, created_at, updated_at FROM transactions
+WHERE id = $1 AND user_id = $2 LIMIT 1
+`
+
+type GetTransactionParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetTransaction(ctx context.Context, arg GetTransactionParams) (Transaction, error) {
+	row := q.db.QueryRow(ctx, getTransaction, arg.ID, arg.UserID)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AmountPaise,
+		&i.Description,
+		&i.MerchantRaw,
+		&i.MerchantNorm,
+		&i.Date,
+		&i.Type,
+		&i.Status,
+		&i.Provenance,
+		&i.CategoryID,
+		&i.Tags,
+		&i.PaymentMethod,
+		&i.UpiID,
+		&i.UpiRef,
+		&i.BankRrn,
+		&i.IsRecurring,
+		&i.RecurringID,
+		&i.ReceiptUrl,
+		&i.ReceiptID,
+		&i.ImportBatchID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, name, avatarurl, twofactorenabled, createdat, updatedat FROM public.users
+SELECT id, email, created_at FROM users
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUser, id)
+func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Name,
-		&i.Avatarurl,
-		&i.Twofactorenabled,
-		&i.Createdat,
-		&i.Updatedat,
-	)
+	err := row.Scan(&i.ID, &i.Email, &i.CreatedAt)
 	return i, err
 }
 
 const getWealthAnalytics = `-- name: GetWealthAnalytics :one
 SELECT 
-    COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) as saved,
-    COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) as spent,
-    COALESCE(SUM(CASE WHEN t.type = 'INVESTMENT' THEN t.amount ELSE 0 END), 0) as invested
-FROM public.transactions t
-WHERE t.userid = $1
+    COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount_paise ELSE 0 END), 0)::BIGINT as saved,
+    COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount_paise ELSE 0 END), 0)::BIGINT as spent,
+    COALESCE(SUM(CASE WHEN type = 'INVESTMENT' THEN amount_paise ELSE 0 END), 0)::BIGINT as invested
+FROM transactions
+WHERE user_id = $1 AND date >= $2 AND date < $3
 `
 
-type GetWealthAnalyticsRow struct {
-	Saved    int32       `json:"saved"`
-	Spent    interface{} `json:"spent"`
-	Invested interface{} `json:"invested"`
+type GetWealthAnalyticsParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	StartDate pgtype.Timestamptz `json:"start_date"`
+	EndDate   pgtype.Timestamptz `json:"end_date"`
 }
 
-func (q *Queries) GetWealthAnalytics(ctx context.Context, userid uuid.UUID) (GetWealthAnalyticsRow, error) {
-	row := q.db.QueryRowContext(ctx, getWealthAnalytics, userid)
+type GetWealthAnalyticsRow struct {
+	Saved    int64 `json:"saved"`
+	Spent    int64 `json:"spent"`
+	Invested int64 `json:"invested"`
+}
+
+func (q *Queries) GetWealthAnalytics(ctx context.Context, arg GetWealthAnalyticsParams) (GetWealthAnalyticsRow, error) {
+	row := q.db.QueryRow(ctx, getWealthAnalytics, arg.UserID, arg.StartDate, arg.EndDate)
 	var i GetWealthAnalyticsRow
 	err := row.Scan(&i.Saved, &i.Spent, &i.Invested)
 	return i, err
 }
 
+const listCategories = `-- name: ListCategories :many
+SELECT id, user_id, name, type, color, icon, is_default, created_at FROM categories
+WHERE user_id = $1 OR is_default = true
+ORDER BY name ASC
+`
+
+func (q *Queries) ListCategories(ctx context.Context, userID pgtype.UUID) ([]Category, error) {
+	rows, err := q.db.Query(ctx, listCategories, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Category
+	for rows.Next() {
+		var i Category
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Type,
+			&i.Color,
+			&i.Icon,
+			&i.IsDefault,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCategoryRules = `-- name: ListCategoryRules :many
+SELECT id, user_id, merchant_norm, category_id, confidence, last_used, created_at FROM category_rules
+WHERE user_id = $1
+`
+
+func (q *Queries) ListCategoryRules(ctx context.Context, userID pgtype.UUID) ([]CategoryRule, error) {
+	rows, err := q.db.Query(ctx, listCategoryRules, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CategoryRule
+	for rows.Next() {
+		var i CategoryRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.MerchantNorm,
+			&i.CategoryID,
+			&i.Confidence,
+			&i.LastUsed,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExpiringReceipts = `-- name: ListExpiringReceipts :many
+SELECT id, user_id, merchant, amount_paise, purchase_date, return_by, warranty_until, reimbursable, ocr_payload_encrypted, created_at, snoozed_until FROM receipts
+WHERE user_id = $1 
+    AND (
+        (return_by IS NOT NULL AND return_by <= $2 AND return_by >= NOW())
+        OR 
+        (warranty_until IS NOT NULL AND warranty_until <= $2 AND warranty_until >= NOW())
+    )
+ORDER BY return_by ASC, warranty_until ASC
+`
+
+type ListExpiringReceiptsParams struct {
+	UserID   pgtype.UUID        `json:"user_id"`
+	ReturnBy pgtype.Timestamptz `json:"return_by"`
+}
+
+func (q *Queries) ListExpiringReceipts(ctx context.Context, arg ListExpiringReceiptsParams) ([]Receipt, error) {
+	rows, err := q.db.Query(ctx, listExpiringReceipts, arg.UserID, arg.ReturnBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Receipt
+	for rows.Next() {
+		var i Receipt
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Merchant,
+			&i.AmountPaise,
+			&i.PurchaseDate,
+			&i.ReturnBy,
+			&i.WarrantyUntil,
+			&i.Reimbursable,
+			&i.OcrPayloadEncrypted,
+			&i.CreatedAt,
+			&i.SnoozedUntil,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGoals = `-- name: ListGoals :many
+SELECT id, user_id, name, description, target_amount_paise, current_amount_paise, due_date, status, color, icon, cadence, active, created_at, updated_at FROM goals
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListGoals(ctx context.Context, userID pgtype.UUID) ([]Goal, error) {
+	rows, err := q.db.Query(ctx, listGoals, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Goal
+	for rows.Next() {
+		var i Goal
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Description,
+			&i.TargetAmountPaise,
+			&i.CurrentAmountPaise,
+			&i.DueDate,
+			&i.Status,
+			&i.Color,
+			&i.Icon,
+			&i.Cadence,
+			&i.Active,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMerchantAliases = `-- name: ListMerchantAliases :many
+SELECT id, user_id, raw_pattern, merchant_norm, created_at FROM merchant_aliases
+WHERE user_id = $1
+`
+
+func (q *Queries) ListMerchantAliases(ctx context.Context, userID pgtype.UUID) ([]MerchantAlias, error) {
+	rows, err := q.db.Query(ctx, listMerchantAliases, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MerchantAlias
+	for rows.Next() {
+		var i MerchantAlias
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.RawPattern,
+			&i.MerchantNorm,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReceipts = `-- name: ListReceipts :many
+SELECT id, user_id, merchant, amount_paise, purchase_date, return_by, warranty_until, reimbursable, ocr_payload_encrypted, created_at, snoozed_until FROM receipts
+WHERE user_id = $1
+ORDER BY purchase_date DESC
+`
+
+func (q *Queries) ListReceipts(ctx context.Context, userID pgtype.UUID) ([]Receipt, error) {
+	rows, err := q.db.Query(ctx, listReceipts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Receipt
+	for rows.Next() {
+		var i Receipt
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Merchant,
+			&i.AmountPaise,
+			&i.PurchaseDate,
+			&i.ReturnBy,
+			&i.WarrantyUntil,
+			&i.Reimbursable,
+			&i.OcrPayloadEncrypted,
+			&i.CreatedAt,
+			&i.SnoozedUntil,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactions = `-- name: ListTransactions :many
-SELECT id, amount, description, date, type, receipturl, paymentmethod, upiid, bankrrn, isrecurring, recurringid, userid, categoryid, createdat, updatedat FROM public.transactions
-WHERE userid = $1
+SELECT id, user_id, amount_paise, description, merchant_raw, merchant_norm, date, type, status, provenance, category_id, tags, payment_method, upi_id, upi_ref, bank_rrn, is_recurring, recurring_id, receipt_url, receipt_id, import_batch_id, created_at, updated_at FROM transactions
+WHERE user_id = $1
 ORDER BY date DESC
 LIMIT $2 OFFSET $3
 `
 
 type ListTransactionsParams struct {
-	Userid uuid.UUID `json:"userid"`
-	Limit  int32     `json:"limit"`
-	Offset int32     `json:"offset"`
+	UserID pgtype.UUID `json:"user_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error) {
-	rows, err := q.db.QueryContext(ctx, listTransactions, arg.Userid, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listTransactions, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -184,27 +865,32 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		var i Transaction
 		if err := rows.Scan(
 			&i.ID,
-			&i.Amount,
+			&i.UserID,
+			&i.AmountPaise,
 			&i.Description,
+			&i.MerchantRaw,
+			&i.MerchantNorm,
 			&i.Date,
 			&i.Type,
-			&i.Receipturl,
-			&i.Paymentmethod,
-			&i.Upiid,
-			&i.Bankrrn,
-			&i.Isrecurring,
-			&i.Recurringid,
-			&i.Userid,
-			&i.Categoryid,
-			&i.Createdat,
-			&i.Updatedat,
+			&i.Status,
+			&i.Provenance,
+			&i.CategoryID,
+			&i.Tags,
+			&i.PaymentMethod,
+			&i.UpiID,
+			&i.UpiRef,
+			&i.BankRrn,
+			&i.IsRecurring,
+			&i.RecurringID,
+			&i.ReceiptUrl,
+			&i.ReceiptID,
+			&i.ImportBatchID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -212,32 +898,355 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 	return items, nil
 }
 
+const listUpcomingRecurringRules = `-- name: ListUpcomingRecurringRules :many
+SELECT id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at FROM recurring_rules
+WHERE user_id = $1 AND active = true AND cancelled_at IS NULL AND next_due_date <= $2
+`
+
+type ListUpcomingRecurringRulesParams struct {
+	UserID      pgtype.UUID        `json:"user_id"`
+	NextDueDate pgtype.Timestamptz `json:"next_due_date"`
+}
+
+func (q *Queries) ListUpcomingRecurringRules(ctx context.Context, arg ListUpcomingRecurringRulesParams) ([]RecurringRule, error) {
+	rows, err := q.db.Query(ctx, listUpcomingRecurringRules, arg.UserID, arg.NextDueDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RecurringRule
+	for rows.Next() {
+		var i RecurringRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.MerchantNorm,
+			&i.AmountPaise,
+			&i.Cadence,
+			&i.NextDueDate,
+			&i.Active,
+			&i.SnoozedUntil,
+			&i.CancelledAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markTransactionsPosted = `-- name: MarkTransactionsPosted :exec
+UPDATE transactions
+SET status = 'POSTED'
+WHERE user_id = $1 AND merchant_norm = $2 AND amount_paise = $3 AND type = $4 AND status = 'PENDING'
+`
+
+type MarkTransactionsPostedParams struct {
+	UserID       pgtype.UUID `json:"user_id"`
+	MerchantNorm string      `json:"merchant_norm"`
+	AmountPaise  int64       `json:"amount_paise"`
+	Type         string      `json:"type"`
+}
+
+func (q *Queries) MarkTransactionsPosted(ctx context.Context, arg MarkTransactionsPostedParams) error {
+	_, err := q.db.Exec(ctx, markTransactionsPosted,
+		arg.UserID,
+		arg.MerchantNorm,
+		arg.AmountPaise,
+		arg.Type,
+	)
+	return err
+}
+
+const updateGoal = `-- name: UpdateGoal :one
+UPDATE goals
+SET name = COALESCE($1, name),
+    description = COALESCE($2, description),
+    target_amount_paise = COALESCE($3, target_amount_paise),
+    due_date = COALESCE($4, due_date),
+    status = COALESCE($5, status),
+    color = COALESCE($6, color),
+    icon = COALESCE($7, icon),
+    cadence = COALESCE($8, cadence),
+    active = COALESCE($9, active),
+    updated_at = NOW()
+WHERE id = $10 AND user_id = $11
+RETURNING id, user_id, name, description, target_amount_paise, current_amount_paise, due_date, status, color, icon, cadence, active, created_at, updated_at
+`
+
+type UpdateGoalParams struct {
+	Name              pgtype.Text        `json:"name"`
+	Description       pgtype.Text        `json:"description"`
+	TargetAmountPaise pgtype.Int8        `json:"target_amount_paise"`
+	DueDate           pgtype.Timestamptz `json:"due_date"`
+	Status            pgtype.Text        `json:"status"`
+	Color             pgtype.Text        `json:"color"`
+	Icon              pgtype.Text        `json:"icon"`
+	Cadence           pgtype.Text        `json:"cadence"`
+	Active            pgtype.Bool        `json:"active"`
+	ID                pgtype.UUID        `json:"id"`
+	UserID            pgtype.UUID        `json:"user_id"`
+}
+
+func (q *Queries) UpdateGoal(ctx context.Context, arg UpdateGoalParams) (Goal, error) {
+	row := q.db.QueryRow(ctx, updateGoal,
+		arg.Name,
+		arg.Description,
+		arg.TargetAmountPaise,
+		arg.DueDate,
+		arg.Status,
+		arg.Color,
+		arg.Icon,
+		arg.Cadence,
+		arg.Active,
+		arg.ID,
+		arg.UserID,
+	)
+	var i Goal
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.TargetAmountPaise,
+		&i.CurrentAmountPaise,
+		&i.DueDate,
+		&i.Status,
+		&i.Color,
+		&i.Icon,
+		&i.Cadence,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateGoalCurrentAmount = `-- name: UpdateGoalCurrentAmount :one
+UPDATE goals
+SET current_amount_paise = current_amount_paise + $1,
+    updated_at = NOW()
+WHERE id = $2 AND user_id = $3
+RETURNING id, user_id, name, description, target_amount_paise, current_amount_paise, due_date, status, color, icon, cadence, active, created_at, updated_at
+`
+
+type UpdateGoalCurrentAmountParams struct {
+	CurrentAmountPaise int64       `json:"current_amount_paise"`
+	ID                 pgtype.UUID `json:"id"`
+	UserID             pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) UpdateGoalCurrentAmount(ctx context.Context, arg UpdateGoalCurrentAmountParams) (Goal, error) {
+	row := q.db.QueryRow(ctx, updateGoalCurrentAmount, arg.CurrentAmountPaise, arg.ID, arg.UserID)
+	var i Goal
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.TargetAmountPaise,
+		&i.CurrentAmountPaise,
+		&i.DueDate,
+		&i.Status,
+		&i.Color,
+		&i.Icon,
+		&i.Cadence,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateReceipt = `-- name: UpdateReceipt :one
+UPDATE receipts
+SET reimbursable = COALESCE($1, reimbursable),
+    return_by = COALESCE($2, return_by),
+    warranty_until = COALESCE($3, warranty_until),
+    snoozed_until = COALESCE($4, snoozed_until)
+WHERE id = $5 AND user_id = $6
+RETURNING id, user_id, merchant, amount_paise, purchase_date, return_by, warranty_until, reimbursable, ocr_payload_encrypted, created_at, snoozed_until
+`
+
+type UpdateReceiptParams struct {
+	Reimbursable  pgtype.Bool        `json:"reimbursable"`
+	ReturnBy      pgtype.Timestamptz `json:"return_by"`
+	WarrantyUntil pgtype.Timestamptz `json:"warranty_until"`
+	SnoozedUntil  pgtype.Timestamptz `json:"snoozed_until"`
+	ID            pgtype.UUID        `json:"id"`
+	UserID        pgtype.UUID        `json:"user_id"`
+}
+
+func (q *Queries) UpdateReceipt(ctx context.Context, arg UpdateReceiptParams) (Receipt, error) {
+	row := q.db.QueryRow(ctx, updateReceipt,
+		arg.Reimbursable,
+		arg.ReturnBy,
+		arg.WarrantyUntil,
+		arg.SnoozedUntil,
+		arg.ID,
+		arg.UserID,
+	)
+	var i Receipt
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Merchant,
+		&i.AmountPaise,
+		&i.PurchaseDate,
+		&i.ReturnBy,
+		&i.WarrantyUntil,
+		&i.Reimbursable,
+		&i.OcrPayloadEncrypted,
+		&i.CreatedAt,
+		&i.SnoozedUntil,
+	)
+	return i, err
+}
+
+const updateRecurringRule = `-- name: UpdateRecurringRule :one
+UPDATE recurring_rules
+SET snoozed_until = COALESCE($1, snoozed_until),
+    cancelled_at = COALESCE($2, cancelled_at),
+    active = COALESCE($3, active)
+WHERE id = $4 AND user_id = $5
+RETURNING id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at
+`
+
+type UpdateRecurringRuleParams struct {
+	SnoozedUntil pgtype.Timestamptz `json:"snoozed_until"`
+	CancelledAt  pgtype.Timestamptz `json:"cancelled_at"`
+	Active       pgtype.Bool        `json:"active"`
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+}
+
+func (q *Queries) UpdateRecurringRule(ctx context.Context, arg UpdateRecurringRuleParams) (RecurringRule, error) {
+	row := q.db.QueryRow(ctx, updateRecurringRule,
+		arg.SnoozedUntil,
+		arg.CancelledAt,
+		arg.Active,
+		arg.ID,
+		arg.UserID,
+	)
+	var i RecurringRule
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.MerchantNorm,
+		&i.AmountPaise,
+		&i.Cadence,
+		&i.NextDueDate,
+		&i.Active,
+		&i.SnoozedUntil,
+		&i.CancelledAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateTransaction = `-- name: UpdateTransaction :one
+UPDATE transactions
+SET amount_paise = COALESCE($1, amount_paise),
+    description = COALESCE($2, description),
+    merchant_raw = COALESCE($3, merchant_raw),
+    merchant_norm = COALESCE($4, merchant_norm),
+    date = COALESCE($5, date),
+    type = COALESCE($6, type),
+    status = COALESCE($7, status),
+    provenance = COALESCE($8, provenance),
+    category_id = COALESCE($9, category_id),
+    payment_method = COALESCE($10, payment_method),
+    upi_id = COALESCE($11, upi_id),
+    upi_ref = COALESCE($12, upi_ref),
+    bank_rrn = COALESCE($13, bank_rrn)
+WHERE id = $14 AND user_id = $15
+RETURNING id, user_id, amount_paise, description, merchant_raw, merchant_norm, date, type, status, provenance, category_id, tags, payment_method, upi_id, upi_ref, bank_rrn, is_recurring, recurring_id, receipt_url, receipt_id, import_batch_id, created_at, updated_at
+`
+
+type UpdateTransactionParams struct {
+	AmountPaise   pgtype.Int8        `json:"amount_paise"`
+	Description   pgtype.Text        `json:"description"`
+	MerchantRaw   pgtype.Text        `json:"merchant_raw"`
+	MerchantNorm  pgtype.Text        `json:"merchant_norm"`
+	Date          pgtype.Timestamptz `json:"date"`
+	Type          pgtype.Text        `json:"type"`
+	Status        pgtype.Text        `json:"status"`
+	Provenance    pgtype.Text        `json:"provenance"`
+	CategoryID    pgtype.UUID        `json:"category_id"`
+	PaymentMethod pgtype.Text        `json:"payment_method"`
+	UpiID         pgtype.Text        `json:"upi_id"`
+	UpiRef        pgtype.Text        `json:"upi_ref"`
+	BankRrn       pgtype.Text        `json:"bank_rrn"`
+	ID            pgtype.UUID        `json:"id"`
+	UserID        pgtype.UUID        `json:"user_id"`
+}
+
+func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (Transaction, error) {
+	row := q.db.QueryRow(ctx, updateTransaction,
+		arg.AmountPaise,
+		arg.Description,
+		arg.MerchantRaw,
+		arg.MerchantNorm,
+		arg.Date,
+		arg.Type,
+		arg.Status,
+		arg.Provenance,
+		arg.CategoryID,
+		arg.PaymentMethod,
+		arg.UpiID,
+		arg.UpiRef,
+		arg.BankRrn,
+		arg.ID,
+		arg.UserID,
+	)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AmountPaise,
+		&i.Description,
+		&i.MerchantRaw,
+		&i.MerchantNorm,
+		&i.Date,
+		&i.Type,
+		&i.Status,
+		&i.Provenance,
+		&i.CategoryID,
+		&i.Tags,
+		&i.PaymentMethod,
+		&i.UpiID,
+		&i.UpiRef,
+		&i.BankRrn,
+		&i.IsRecurring,
+		&i.RecurringID,
+		&i.ReceiptUrl,
+		&i.ReceiptID,
+		&i.ImportBatchID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUser = `-- name: UpdateUser :one
-UPDATE public.users
-SET name = COALESCE($2, name),
-    avatarurl = COALESCE($3, avatarurl),
-    updatedat = NOW()
-WHERE id = $1
-RETURNING id, email, name, avatarurl, twofactorenabled, createdat, updatedat
+UPDATE users
+SET email = COALESCE($1, email)
+WHERE id = $2
+RETURNING id, email, created_at
 `
 
 type UpdateUserParams struct {
-	ID        uuid.UUID      `json:"id"`
-	Name      sql.NullString `json:"name"`
-	AvatarUrl sql.NullString `json:"avatar_url"`
+	Email pgtype.Text `json:"email"`
+	ID    pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUser, arg.ID, arg.Name, arg.AvatarUrl)
+	row := q.db.QueryRow(ctx, updateUser, arg.Email, arg.ID)
 	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Name,
-		&i.Avatarurl,
-		&i.Twofactorenabled,
-		&i.Createdat,
-		&i.Updatedat,
-	)
+	err := row.Scan(&i.ID, &i.Email, &i.CreatedAt)
 	return i, err
 }

@@ -15,7 +15,7 @@ service TransactionService {
 
 message Transaction {
   string id = 1;
-  double amount = 2;
+  int64 amount_paise = 2;
   string description = 3;
   google.protobuf.Timestamp date = 4;
   string type = 5; // e.g., "EXPENSE", "INCOME"
@@ -29,10 +29,18 @@ message Transaction {
   optional string category_id = 13;
   google.protobuf.Timestamp created_at = 14;
   google.protobuf.Timestamp updated_at = 15;
+  
+  // New fields
+  string merchant_raw = 16;
+  string merchant_norm = 17;
+  string status = 18;
+  string provenance = 19;
+  repeated string tags = 20;
+  optional string upi_ref = 21;
 }
 
 message CreateTransactionRequest {
-  double amount = 1;
+  int64 amount_paise = 1;
   string description = 2;
   google.protobuf.Timestamp date = 3;
   string type = 4;
@@ -41,6 +49,13 @@ message CreateTransactionRequest {
   optional string payment_method = 7;
   optional string upi_id = 8;
   optional string bank_rrn = 9;
+  
+  string merchant_raw = 10;
+  string merchant_norm = 11;
+  string status = 12;
+  string provenance = 13;
+  repeated string tags = 14;
+  optional string upi_ref = 15;
 }
 
 message CreateTransactionResponse {
@@ -69,7 +84,7 @@ message ListTransactionsResponse {
 
 message UpdateTransactionRequest {
   string id = 1;
-  optional double amount = 2;
+  optional int64 amount_paise = 2;
   optional string description = 3;
   optional google.protobuf.Timestamp date = 4;
   optional string type = 5;
@@ -77,6 +92,13 @@ message UpdateTransactionRequest {
   optional string payment_method = 7;
   optional string upi_id = 8;
   optional string bank_rrn = 9;
+  
+  optional string merchant_raw = 10;
+  optional string merchant_norm = 11;
+  optional string status = 12;
+  optional string provenance = 13;
+  repeated string tags = 14;
+  optional string upi_ref = 15;
 }
 
 message UpdateTransactionResponse {

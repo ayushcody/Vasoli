@@ -5,135 +5,129 @@
 package db
 
 import (
-	"database/sql"
-	"time"
-
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Budget struct {
-	ID         uuid.UUID      `json:"id"`
-	Name       string         `json:"name"`
-	Amount     float64        `json:"amount"`
-	Period     sql.NullString `json:"period"`
-	Startdate  time.Time      `json:"startdate"`
-	Enddate    time.Time      `json:"enddate"`
-	Categories string         `json:"categories"`
-	Userid     uuid.UUID      `json:"userid"`
-	Createdat  sql.NullTime   `json:"createdat"`
-	Updatedat  sql.NullTime   `json:"updatedat"`
-}
-
 type Category struct {
-	ID        uuid.UUID      `json:"id"`
-	Name      string         `json:"name"`
-	Icon      sql.NullString `json:"icon"`
-	Color     sql.NullString `json:"color"`
-	Type      sql.NullString `json:"type"`
-	Createdat sql.NullTime   `json:"createdat"`
-	Updatedat sql.NullTime   `json:"updatedat"`
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Name      string             `json:"name"`
+	Type      string             `json:"type"`
+	Color     string             `json:"color"`
+	Icon      string             `json:"icon"`
+	IsDefault pgtype.Bool        `json:"is_default"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-type FinancialHealthScore struct {
-	ID         uuid.UUID      `json:"id"`
-	Score      int32          `json:"score"`
-	Components string         `json:"components"`
-	Factors    string         `json:"factors"`
-	Insights   sql.NullString `json:"insights"`
-	Userid     uuid.UUID      `json:"userid"`
-	Date       sql.NullTime   `json:"date"`
+type CategoryRule struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	MerchantNorm string             `json:"merchant_norm"`
+	CategoryID   pgtype.UUID        `json:"category_id"`
+	Confidence   float64            `json:"confidence"`
+	LastUsed     pgtype.Timestamptz `json:"last_used"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
 type Goal struct {
-	ID            uuid.UUID       `json:"id"`
-	Name          string          `json:"name"`
-	Description   sql.NullString  `json:"description"`
-	Targetamount  float64         `json:"targetamount"`
-	Currentamount sql.NullFloat64 `json:"currentamount"`
-	Deadline      sql.NullTime    `json:"deadline"`
-	Status        sql.NullString  `json:"status"`
-	Color         sql.NullString  `json:"color"`
-	Icon          sql.NullString  `json:"icon"`
-	Userid        uuid.UUID       `json:"userid"`
-	Createdat     sql.NullTime    `json:"createdat"`
-	Updatedat     sql.NullTime    `json:"updatedat"`
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             pgtype.UUID        `json:"user_id"`
+	Name               string             `json:"name"`
+	Description        pgtype.Text        `json:"description"`
+	TargetAmountPaise  int64              `json:"target_amount_paise"`
+	CurrentAmountPaise int64              `json:"current_amount_paise"`
+	DueDate            pgtype.Timestamptz `json:"due_date"`
+	Status             string             `json:"status"`
+	Color              pgtype.Text        `json:"color"`
+	Icon               pgtype.Text        `json:"icon"`
+	Cadence            pgtype.Text        `json:"cadence"`
+	Active             bool               `json:"active"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type GoalContribution struct {
-	ID            uuid.UUID      `json:"id"`
-	Amount        float64        `json:"amount"`
-	Note          sql.NullString `json:"note"`
-	Goalid        uuid.UUID      `json:"goalid"`
-	Transactionid uuid.NullUUID  `json:"transactionid"`
-	Createdat     sql.NullTime   `json:"createdat"`
+	ID          pgtype.UUID        `json:"id"`
+	GoalID      pgtype.UUID        `json:"goal_id"`
+	AmountPaise int64              `json:"amount_paise"`
+	Note        pgtype.Text        `json:"note"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-type RecurringTransaction struct {
-	ID          uuid.UUID      `json:"id"`
-	Amount      float64        `json:"amount"`
-	Description string         `json:"description"`
-	Type        sql.NullString `json:"type"`
-	Frequency   string         `json:"frequency"`
-	Startdate   time.Time      `json:"startdate"`
-	Enddate     sql.NullTime   `json:"enddate"`
-	Occurrences sql.NullInt32  `json:"occurrences"`
-	Lastrun     sql.NullTime   `json:"lastrun"`
-	Nextrun     sql.NullTime   `json:"nextrun"`
-	Isactive    sql.NullBool   `json:"isactive"`
-	Userid      uuid.UUID      `json:"userid"`
-	Categoryid  uuid.NullUUID  `json:"categoryid"`
-	Createdat   sql.NullTime   `json:"createdat"`
-	Updatedat   sql.NullTime   `json:"updatedat"`
+type ImportBatch struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	FileHash     string             `json:"file_hash"`
+	BankFormat   string             `json:"bank_format"`
+	ParsedCount  int32              `json:"parsed_count"`
+	CreatedCount int32              `json:"created_count"`
+	MatchedCount int32              `json:"matched_count"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
-type Reminder struct {
-	ID          uuid.UUID      `json:"id"`
-	Title       string         `json:"title"`
-	Description sql.NullString `json:"description"`
-	Type        string         `json:"type"`
-	Duedate     time.Time      `json:"duedate"`
-	Status      sql.NullString `json:"status"`
-	Snoozeuntil sql.NullTime   `json:"snoozeuntil"`
-	Metadata    sql.NullString `json:"metadata"`
-	Userid      uuid.UUID      `json:"userid"`
-	Createdat   sql.NullTime   `json:"createdat"`
-	Updatedat   sql.NullTime   `json:"updatedat"`
+type MerchantAlias struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	RawPattern   string             `json:"raw_pattern"`
+	MerchantNorm string             `json:"merchant_norm"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type Receipt struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	Merchant            string             `json:"merchant"`
+	AmountPaise         int64              `json:"amount_paise"`
+	PurchaseDate        pgtype.Timestamptz `json:"purchase_date"`
+	ReturnBy            pgtype.Timestamptz `json:"return_by"`
+	WarrantyUntil       pgtype.Timestamptz `json:"warranty_until"`
+	Reimbursable        bool               `json:"reimbursable"`
+	OcrPayloadEncrypted string             `json:"ocr_payload_encrypted"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	SnoozedUntil        pgtype.Timestamptz `json:"snoozed_until"`
+}
+
+type RecurringRule struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	MerchantNorm string             `json:"merchant_norm"`
+	AmountPaise  int64              `json:"amount_paise"`
+	Cadence      string             `json:"cadence"`
+	NextDueDate  pgtype.Timestamptz `json:"next_due_date"`
+	Active       bool               `json:"active"`
+	SnoozedUntil pgtype.Timestamptz `json:"snoozed_until"`
+	CancelledAt  pgtype.Timestamptz `json:"cancelled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
 type Transaction struct {
-	ID            uuid.UUID      `json:"id"`
-	Amount        float64        `json:"amount"`
-	Description   string         `json:"description"`
-	Date          time.Time      `json:"date"`
-	Type          sql.NullString `json:"type"`
-	Receipturl    sql.NullString `json:"receipturl"`
-	Paymentmethod sql.NullString `json:"paymentmethod"`
-	Upiid         sql.NullString `json:"upiid"`
-	Bankrrn       sql.NullString `json:"bankrrn"`
-	Isrecurring   sql.NullBool   `json:"isrecurring"`
-	Recurringid   uuid.NullUUID  `json:"recurringid"`
-	Userid        uuid.UUID      `json:"userid"`
-	Categoryid    uuid.NullUUID  `json:"categoryid"`
-	Createdat     sql.NullTime   `json:"createdat"`
-	Updatedat     sql.NullTime   `json:"updatedat"`
-}
-
-type TransactionSplit struct {
-	ID            uuid.UUID      `json:"id"`
-	Amount        float64        `json:"amount"`
-	Description   sql.NullString `json:"description"`
-	Transactionid uuid.UUID      `json:"transactionid"`
-	Categoryid    uuid.UUID      `json:"categoryid"`
-	Userid        uuid.UUID      `json:"userid"`
-	Createdat     sql.NullTime   `json:"createdat"`
+	ID            pgtype.UUID        `json:"id"`
+	UserID        pgtype.UUID        `json:"user_id"`
+	AmountPaise   int64              `json:"amount_paise"`
+	Description   string             `json:"description"`
+	MerchantRaw   string             `json:"merchant_raw"`
+	MerchantNorm  string             `json:"merchant_norm"`
+	Date          pgtype.Timestamptz `json:"date"`
+	Type          string             `json:"type"`
+	Status        string             `json:"status"`
+	Provenance    string             `json:"provenance"`
+	CategoryID    pgtype.UUID        `json:"category_id"`
+	Tags          []string           `json:"tags"`
+	PaymentMethod pgtype.Text        `json:"payment_method"`
+	UpiID         pgtype.Text        `json:"upi_id"`
+	UpiRef        pgtype.Text        `json:"upi_ref"`
+	BankRrn       pgtype.Text        `json:"bank_rrn"`
+	IsRecurring   pgtype.Bool        `json:"is_recurring"`
+	RecurringID   pgtype.UUID        `json:"recurring_id"`
+	ReceiptUrl    pgtype.Text        `json:"receipt_url"`
+	ReceiptID     pgtype.UUID        `json:"receipt_id"`
+	ImportBatchID pgtype.UUID        `json:"import_batch_id"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {
-	ID               uuid.UUID      `json:"id"`
-	Email            string         `json:"email"`
-	Name             sql.NullString `json:"name"`
-	Avatarurl        sql.NullString `json:"avatarurl"`
-	Twofactorenabled sql.NullBool   `json:"twofactorenabled"`
-	Createdat        sql.NullTime   `json:"createdat"`
-	Updatedat        sql.NullTime   `json:"updatedat"`
+	ID        pgtype.UUID        `json:"id"`
+	Email     string             `json:"email"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }

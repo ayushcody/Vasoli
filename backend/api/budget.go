@@ -17,8 +17,8 @@ func (s *BudgetService) CreateBudget(ctx context.Context, req *connect.Request[p
 	res := connect.NewResponse(&pb.CreateBudgetResponse{
 		Budget: &pb.Budget{
 			Id:     "mock-budget-id",
-			Name:   req.Msg.Name,
-			Amount: req.Msg.Amount,
+			Name:        req.Msg.Name,
+			AmountPaise: req.Msg.AmountPaise,
 		},
 	})
 	return res, nil
@@ -35,6 +35,7 @@ func (s *BudgetService) UpdateBudget(ctx context.Context, req *connect.Request[p
 	res := connect.NewResponse(&pb.UpdateBudgetResponse{
 		Budget: &pb.Budget{
 			Id: req.Msg.Id,
+			AmountPaise: req.Msg.GetAmountPaise(),
 		},
 	})
 	return res, nil

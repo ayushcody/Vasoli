@@ -4,12 +4,12 @@ import "./globals.css";
 import { QueryProvider } from "@/lib/hooks/query-provider";
 import { Toaster } from "sonner";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   variable: '--font-inter',
 });
 
-const fraunces = Fraunces({ 
+const fraunces = Fraunces({
   subsets: ["latin"],
   variable: '--font-fraunces',
   weight: ['600', '700', '800'],
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Vasoli - Smart Personal Finance",
   description: "AI-powered personal finance management",
   icons: {
-    icon: '/vasoli_logo.png',
+    icon: '/favicon.ico',
   },
 };
 
@@ -29,11 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${fraunces.variable} font-sans`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${fraunces.variable} font-sans`} suppressHydrationWarning>
         <QueryProvider>
           {children}
-          <Toaster 
+          <Toaster
             position="top-right"
             richColors
             closeButton

@@ -2,11 +2,12 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "query.sql"
-    schema: "supabase_schema.sql"
+    schema: "db/schema.sql"
     gen:
       go:
         package: "db"
         out: "internal/db"
+        sql_package: "pgx/v5"
         emit_json_tags: true
         emit_prepared_queries: false
         emit_interface: true

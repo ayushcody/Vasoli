@@ -7,16 +7,42 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	AddGoalContribution(ctx context.Context, arg AddGoalContributionParams) (GoalContribution, error)
+	BulkCreateTransactions(ctx context.Context, arg []BulkCreateTransactionsParams) (int64, error)
+	CreateCategoryRule(ctx context.Context, arg CreateCategoryRuleParams) (CategoryRule, error)
+	CreateGoal(ctx context.Context, arg CreateGoalParams) (Goal, error)
+	CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error)
+	CreateMerchantAlias(ctx context.Context, arg CreateMerchantAliasParams) (MerchantAlias, error)
+	CreateReceipt(ctx context.Context, arg CreateReceiptParams) (Receipt, error)
+	CreateRecurringRule(ctx context.Context, arg CreateRecurringRuleParams) (RecurringRule, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
+	DeleteGoal(ctx context.Context, arg DeleteGoalParams) error
 	DeleteTransaction(ctx context.Context, arg DeleteTransactionParams) error
-	GetTransaction(ctx context.Context, id uuid.UUID) (Transaction, error)
-	GetUser(ctx context.Context, id uuid.UUID) (User, error)
-	GetWealthAnalytics(ctx context.Context, userid uuid.UUID) (GetWealthAnalyticsRow, error)
+	GetCategoryRule(ctx context.Context, arg GetCategoryRuleParams) (CategoryRule, error)
+	GetGoal(ctx context.Context, arg GetGoalParams) (Goal, error)
+	GetGoalContributions(ctx context.Context, goalID pgtype.UUID) ([]GoalContribution, error)
+	GetRecurringRule(ctx context.Context, arg GetRecurringRuleParams) (RecurringRule, error)
+	GetTransaction(ctx context.Context, arg GetTransactionParams) (Transaction, error)
+	GetUser(ctx context.Context, id pgtype.UUID) (User, error)
+	GetWealthAnalytics(ctx context.Context, arg GetWealthAnalyticsParams) (GetWealthAnalyticsRow, error)
+	ListCategories(ctx context.Context, userID pgtype.UUID) ([]Category, error)
+	ListCategoryRules(ctx context.Context, userID pgtype.UUID) ([]CategoryRule, error)
+	ListExpiringReceipts(ctx context.Context, arg ListExpiringReceiptsParams) ([]Receipt, error)
+	ListGoals(ctx context.Context, userID pgtype.UUID) ([]Goal, error)
+	ListMerchantAliases(ctx context.Context, userID pgtype.UUID) ([]MerchantAlias, error)
+	ListReceipts(ctx context.Context, userID pgtype.UUID) ([]Receipt, error)
 	ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error)
+	ListUpcomingRecurringRules(ctx context.Context, arg ListUpcomingRecurringRulesParams) ([]RecurringRule, error)
+	MarkTransactionsPosted(ctx context.Context, arg MarkTransactionsPostedParams) error
+	UpdateGoal(ctx context.Context, arg UpdateGoalParams) (Goal, error)
+	UpdateGoalCurrentAmount(ctx context.Context, arg UpdateGoalCurrentAmountParams) (Goal, error)
+	UpdateReceipt(ctx context.Context, arg UpdateReceiptParams) (Receipt, error)
+	UpdateRecurringRule(ctx context.Context, arg UpdateRecurringRuleParams) (RecurringRule, error)
+	UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (Transaction, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 

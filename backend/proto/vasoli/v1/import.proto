@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+service ImportService {
+  rpc ImportStatement(ImportStatementRequest) returns (ImportStatementResponse);
+}
+
+message ImportStatementRequest {
+  bytes file = 1;
+  string format = 2; // e.g., "generic_csv", "hdfc_statement"
+  optional string mapping_json = 3;
+}
+
+message ImportStatementResponse {
+  string batch_id = 1;
+  int32 parsed_count = 2;
+  int32 created_count = 3;
+  int32 matched_count = 4;
+}

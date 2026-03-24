@@ -1,9 +1,11 @@
-import { PrismaClient } from '@prisma/client'
+const missingPrismaMessage =
+  "The legacy Prisma client import at '@/lib/prisma' is no longer configured in this codebase. Update the Marco tooling route to the current data layer before using it."
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export const prisma = new Proxy(
+  {},
+  {
+    get() {
+      throw new Error(missingPrismaMessage)
+    },
+  },
+) as any

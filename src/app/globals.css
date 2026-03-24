@@ -26,6 +26,8 @@
     /* Mapped to existing tokens */
     --background: var(--paper-1);
     --foreground: var(--ink);
+    --main: var(--mustard);
+    --main-foreground: var(--ink);
     --card: var(--paper-2);
     --card-foreground: var(--ink);
     --popover: var(--paper-2);
@@ -34,6 +36,7 @@
     --primary-foreground: var(--ink);
     --secondary: var(--paper-2);
     --secondary-foreground: var(--ink);
+    --secondary-background: var(--paper-2);
     --muted: var(--taupe);
     --muted-foreground: var(--taupe);
     --accent: var(--mustard);
@@ -43,10 +46,14 @@
     --border: var(--ink);
     --input: var(--paper-2);
     --ring: var(--ink);
+    --sidebar: var(--paper-2);
+    --overlay: rgba(26, 26, 26, 0.36);
     
     /* Neo-Brutal specific */
     --border-width: 1.5px;
     --border-width-thick: 2px;
+    --box-shadow-x: 4px;
+    --box-shadow-y: 4px;
     --shadow-brutal: 4px 4px 0 var(--ink);
     --shadow-brutal-sm: 2px 2px 0 var(--ink);
   }
@@ -58,7 +65,7 @@
   }
   
   body {
-    @apply bg-[var(--paper-1)] text-[var(--ink)];
+    @apply bg-background text-foreground;
     font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
   }
   
@@ -88,6 +95,26 @@
   
   .shadow-brutal-sm {
     box-shadow: var(--shadow-brutal-sm);
+  }
+
+  .shadow-brutal-hover {
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+
+  .border-b-brutal {
+    border-bottom: var(--border-width) solid var(--ink);
+  }
+
+  .border-b-brutal-thick {
+    border-bottom: var(--border-width-thick) solid var(--ink);
+  }
+
+  .border-r-brutal {
+    border-right: var(--border-width) solid var(--ink);
+  }
+
+  .border-t-brutal {
+    border-top: var(--border-width) solid var(--ink);
   }
   
   .divider-brutal {

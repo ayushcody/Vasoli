@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
+import { goalClient } from '@/lib/rpc/clients';
 import { toast } from 'sonner';
+import { Timestamp } from "@bufbuild/protobuf";
 
 export interface Goal {
   id: string;
@@ -47,19 +48,35 @@ export interface CreateContributionInput {
 
 const GOALS_KEY = 'goals';
 
+function mapGoal(g: any): Goal {
+  const target = Number(g.targetAmountPaise) / 100;
+  const current = Number(g.currentAmountPaise) / 100;
+  return {
+    id: g.id,
+    name: g.name,
+    description: g.description,
+    targetAmount: target,
+    currentAmount: current,
+    deadline: g.dueDate?.toDate().toISOString(),
+    status: g.active ? 'ACTIVE' : 'ARCHIVED',
+    color: g.color,
+    icon: g.icon,
+    userId: g.userId,
+    contributions: [],
+    createdAt: g.createdAt?.toDate().toISOString() || new Date().toISOString(),
+    updatedAt: g.updatedAt?.toDate().toISOString() || new Date().toISOString(),
+    progress: Math.min(100, Math.round((current / target) * 100)) || 0,
+  };
+}
+
 export function useGoals(options: { status?: string } = {}) {
   const { status } = options;
-  
+
   return useQuery({
     queryKey: [GOALS_KEY, { status }],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      
-      const queryString = params.toString();
-      const url = `/goals${queryString ? `?${queryString}` : ''}`;
-      
-      return apiClient.get<Goal[]>(url);
+      const res = await goalClient.listGoals({});
+      return res.goals.map(mapGoal);
     },
   });
 }
@@ -68,7 +85,9 @@ export function useGoal(id: string) {
   return useQuery({
     queryKey: [GOALS_KEY, id],
     queryFn: async () => {
-      return apiClient.get<Goal>(`/goals/${id}`);
+      const res = await goalClient.getGoal({ id });
+      if (!res.goal) throw new Error("Goal not found");
+      return mapGoal(res.goal);
     },
     enabled: !!id,
   });
@@ -76,10 +95,18 @@ export function useGoal(id: string) {
 
 export function useCreateGoal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: CreateGoalInput) => {
-      return apiClient.post<Goal>('/goals', data);
+      const res = await goalClient.createGoal({
+        name: data.name,
+        description: data.description,
+        targetAmountPaise: BigInt(Math.round(data.targetAmount * 100)),
+        dueDate: data.deadline ? Timestamp.fromDate(new Date(data.deadline)) : undefined,
+        color: data.color,
+        icon: data.icon,
+      });
+      return mapGoal(res.goal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [GOALS_KEY] });
@@ -95,10 +122,15 @@ export function useCreateGoal() {
 
 export function useUpdateGoal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateGoalInput> }) => {
-      return apiClient.patch<Goal>(`/goals/${id}`, data);
+      const res = await goalClient.updateGoal({
+        id,
+        name: data.name,
+        targetAmountPaise: data.targetAmount !== undefined ? BigInt(Math.round(data.targetAmount * 100)) : undefined,
+      });
+      return mapGoal(res.goal);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [GOALS_KEY] });
@@ -115,10 +147,10 @@ export function useUpdateGoal() {
 
 export function useDeleteGoal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiClient.delete<void>(`/goals/${id}`);
+      await goalClient.deleteGoal({ id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [GOALS_KEY] });
@@ -134,10 +166,15 @@ export function useDeleteGoal() {
 
 export function useCreateContribution() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: CreateContributionInput) => {
-      return apiClient.post<GoalContribution>(`/goals/${data.goalId}/contributions`, data);
+      const res = await goalClient.addContribution({
+        goalId: data.goalId,
+        amountPaise: BigInt(Math.round(data.amount * 100)),
+        note: data.note,
+      });
+      return mapGoal(res.goal);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [GOALS_KEY] });
@@ -156,14 +193,19 @@ export function useGoalStats() {
   return useQuery({
     queryKey: [GOALS_KEY, 'stats'],
     queryFn: async () => {
-      return apiClient.get<{
-        totalGoals: number;
-        completedGoals: number;
-        totalSaved: number;
-        totalTarget: number;
-        averageProgress: number;
-        upcomingDeadlines: Goal[];
-      }>('/goals/stats');
+      // Use summary or goals list to compute
+      const res = await goalClient.listGoals({});
+      const goals = res.goals;
+      const totalSaved = goals.reduce((acc, g) => acc + Number(g.currentAmountPaise), 0) / 100;
+      const totalTarget = goals.reduce((acc, g) => acc + Number(g.targetAmountPaise), 0) / 100;
+      return {
+        totalGoals: goals.length,
+        completedGoals: goals.filter(g => Number(g.currentAmountPaise) >= Number(g.targetAmountPaise)).length,
+        totalSaved,
+        totalTarget,
+        averageProgress: goals.length > 0 ? (totalSaved / totalTarget) * 100 : 0,
+        upcomingDeadlines: goals.map(mapGoal),
+      };
     },
     staleTime: 1000 * 60 * 2,
   });

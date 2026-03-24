@@ -15,7 +15,7 @@ service BudgetService {
 message Budget {
   string id = 1;
   string name = 2;
-  double amount = 3;
+  int64 amount_paise = 3;
   string period = 4; // MONTHLY, WEEKLY
   google.protobuf.Timestamp start_date = 5;
   google.protobuf.Timestamp end_date = 6;
@@ -27,7 +27,7 @@ message Budget {
 
 message CreateBudgetRequest {
   string name = 1;
-  double amount = 2;
+  int64 amount_paise = 2;
   string period = 3;
   google.protobuf.Timestamp start_date = 4;
   google.protobuf.Timestamp end_date = 5;
@@ -47,7 +47,7 @@ message ListBudgetsResponse {
 message UpdateBudgetRequest {
   string id = 1;
   optional string name = 2;
-  optional double amount = 3;
+  optional int64 amount_paise = 3;
   optional string period = 4;
   optional string categories = 5;
 }

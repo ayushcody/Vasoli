@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service InsightsService {
+  rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse);
+  rpc GetZine(GetZineRequest) returns (GetZineResponse);
+  rpc GetHealthScore(GetHealthScoreRequest) returns (GetHealthScoreResponse);
+}
+
+message GetHealthScoreRequest {}
+
+message HealthScoreFactor {
+  string type = 1; // positive, negative, neutral
+  string title = 2;
+  string description = 3;
+  double impact = 4;
+}
+
+message HealthScoreInsight {
+  string category = 1;
+  string tip = 2;
+  string priority = 3; // high, medium, low
+}
+
+message HealthScoreComponent {
+  string name = 1;
+  int32 score = 2;
+  int32 weight = 3;
+  string description = 4;
+}
+
+message GetHealthScoreResponse {
+  int32 score = 1;
+  repeated HealthScoreComponent components = 2;
+  repeated HealthScoreFactor factors = 3;
+  repeated HealthScoreInsight insights = 4;
+}
+
+message GetSummaryRequest {
+  string month_year = 1; // Format: YYYY-MM
+}
+
+message GetSummaryResponse {
+  int64 total_income_paise = 1;
+  int64 total_expense_paise = 2;
+  int64 balance_paise = 3;
+}
+
+message GetZineRequest {
+  string month_year = 1;
+}
+
+message CategoryInsight {
+  string name = 1;
+  string icon = 2;
+  int64 total_paise = 3;
+}
+
+message SpendInsight {
+  string merchant = 1;
+  int64 amount_paise = 2;
+  google.protobuf.Timestamp date = 3;
+}
+
+message LeakInsight {
+  string category = 1;
+  int64 increase_paise = 2;
+}
+
+message GetZineResponse {
+  string period = 1;
+  int64 total_spent_paise = 2;
+  int64 total_income_paise = 3;
+  int32 transaction_count = 4;
+  repeated CategoryInsight top_categories = 5;
+  optional SpendInsight biggest_spend = 6;
+  int32 streak = 7;
+  int64 saved_vs_prev_paise = 8;
+  optional LeakInsight leak = 9;
+}

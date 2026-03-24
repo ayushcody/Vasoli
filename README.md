@@ -78,10 +78,13 @@ cd vasoli-mvp
 npm install
 ```
 
-3. Set up environment variables:
+3. Set up environment variables locally:
 ```bash
+# Copy the example environment files
 cp .env.example .env
-# Edit .env with your configuration
+cp backend/.env.example backend/.env
+
+# Open .env and backend/.env to fill in your actual configuration values
 ```
 
 4. Initialize the database:

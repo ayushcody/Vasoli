@@ -62,3 +62,13 @@ func NewAuthInterceptor(jwtSecret string) connect.UnaryInterceptorFunc {
 		}
 	}
 }
+
+// UserIDFromContext extracts the user ID from the context.
+func UserIDFromContext(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", errors.New("user ID not found in context")
+	}
+	return userID, nil
+}
+
