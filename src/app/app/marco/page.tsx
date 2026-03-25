@@ -370,7 +370,7 @@ export default function MarcoPage() {
                                     <Bot size={32} className="text-grape" />
                                 </div>
                                 <h2 className="font-serif text-2xl font-bold text-ink mb-2">
-                                    Hey! I'm Marco 👋
+                                    Hey! I&apos;m Marco 👋
                                 </h2>
                                 <p className="text-taupe text-sm max-w-sm">
                                     Your personal money coach. I can help you understand your spending, plan your cashflow, and stay on top of bills — all grounded in your actual data.

@@ -71,7 +71,7 @@ export default function SettingsPage() {
                         <Smartphone size={20} /> API Integrations
                     </h2>
                     <p className="text-taupe text-sm mb-5">
-                        Connect external payment APIs. Keys are stored securely in your browser's local storage.
+                        Connect external payment APIs. Keys are stored securely in your browser&apos;s local storage.
                     </p>
 
                     <div className="space-y-4">

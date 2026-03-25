@@ -1,260 +1,225 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/browser";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Mail, Lock, UserPlus, Loader2, User, KeyRound } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Loader2, UserPlus } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
-type Step = "form" | "verify";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/browser";
+
+const signUpSchema = z.object({
+  name: z.string().min(2, "Tell us your name."),
+  email: z.string().email("Enter a valid email address."),
+  password: z.string().min(6, "Password should be at least 6 characters."),
+});
+
+const otpSchema = z.object({
+  otp: z.string().length(6, "Enter the full 6-digit code."),
+});
+
+type SignUpValues = z.infer<typeof signUpSchema>;
+type OtpValues = z.infer<typeof otpSchema>;
 
 export default function SignUpPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<Step>("form");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+  const signUpForm = useForm<SignUpValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+    },
+  });
+  const otpForm = useForm<OtpValues>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { otp: "" },
+  });
 
-  // Step 1: Create account (sends OTP email)
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+  const currentEmail = signUpForm.watch("email");
+  const verificationStep = Boolean(signUpForm.formState.isSubmitSuccessful);
 
+  async function handleSignUp(values: SignUpValues) {
+    const supabase = createClient();
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: values.email,
+      password: values.password,
       options: {
-        data: { name },
+        data: { name: values.name },
       },
     });
 
     if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
+      signUpForm.setError("root", { message: error.message });
+      throw error;
     }
-
-    setStep("verify");
-    setLoading(false);
-  };
-
-  // Step 2: Verify OTP code
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: "signup",
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
-
-    // Full page navigation to ensure cookies propagate
-    window.location.href = "/app/dashboard";
-  };
-
-  // Resend OTP
-  const handleResend = async () => {
-    setError(null);
-    setLoading(true);
-
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setError(null);
-    }
-    setLoading(false);
-  };
-
-  // ─── OTP Verification Step ─────────────────────────────────
-  if (step === "verify") {
-    return (
-      <div className="min-h-screen bg-paper-1 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md"
-        >
-          <div className="text-center mb-8">
-            <div className="text-5xl mb-4">📬</div>
-            <h2 className="font-serif text-2xl font-bold text-ink mb-2">
-              Check your email
-            </h2>
-            <p className="text-taupe">
-              We sent a 6-digit code to <strong className="text-ink">{email}</strong>
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleVerifyOTP}
-            className="border-brutal-thick rounded-neo-md bg-paper-2 p-8 shadow-brutal space-y-5"
-          >
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="border-brutal rounded-neo bg-red-50 p-3 text-sm text-danger"
-              >
-                {error}
-              </motion.div>
-            )}
-
-            <div className="space-y-2">
-              <label htmlFor="otp" className="text-sm font-medium text-ink flex items-center gap-2">
-                <KeyRound size={16} /> Verification Code
-              </label>
-              <input
-                id="otp"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                required
-                placeholder="Enter 6-digit code"
-                autoFocus
-                className="w-full border-brutal rounded-neo px-4 py-3 bg-paper-1 text-ink text-center text-2xl font-bold tracking-[0.5em] placeholder:text-taupe placeholder:text-base placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-ink transition-shadow"
-              />
-            </div>
-
-            <motion.button
-              type="submit"
-              disabled={loading || otp.length < 6}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full flex items-center justify-center gap-2 border-brutal-thick rounded-neo bg-cta text-ink font-semibold py-3 px-4 shadow-brutal-sm hover:shadow-brutal transition-all disabled:opacity-60"
-            >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-              {loading ? "Verifying..." : "Verify & Create Account"}
-            </motion.button>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={loading}
-                className="text-sm text-cobalt font-medium hover:underline disabled:opacity-50"
-              >
-                Didn't get the code? Resend
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-    );
   }
 
-  // ─── Sign-Up Form Step ──────────────────────────────────────
+  async function handleVerify(values: OtpValues) {
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email: currentEmail,
+      token: values.otp,
+      type: "signup",
+    });
+
+    if (error) {
+      otpForm.setError("root", { message: error.message });
+      return;
+    }
+
+    window.location.href = "/app/dashboard";
+  }
+
+  async function handleResend() {
+    const supabase = createClient();
+    await supabase.auth.resend({
+      type: "signup",
+      email: currentEmail,
+    });
+  }
+
   return (
-    <div className="min-h-screen bg-paper-1 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
-      >
-        <div className="text-center mb-8">
-          <h1 className="font-serif text-4xl font-bold text-ink mb-2">Create Account</h1>
-          <p className="text-taupe">Start taking control of your finances</p>
+    <div className="min-h-screen bg-paper-1 px-4 py-12">
+      <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-[0.9fr_1.1fr]">
+        <div className="neo-surface hidden p-8 md:block">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Create your workspace</p>
+          <h1 className="mt-3 text-4xl font-black">Build a cleaner home for transactions, receipts, and obligations.</h1>
+          <p className="mt-4 text-sm leading-7 text-taupe">
+            Sign up uses standard form validation, email OTP verification, and the same protected routing rules as the rest of the product.
+          </p>
         </div>
-
-        <form
-          onSubmit={handleSignUp}
-          className="border-brutal-thick rounded-neo-md bg-paper-2 p-8 shadow-brutal space-y-5"
-        >
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="border-brutal rounded-neo bg-red-50 p-3 text-sm text-danger"
-            >
-              {error}
-            </motion.div>
+        <div className="neo-surface-lg p-8">
+          {!verificationStep ? (
+            <>
+              <div className="mb-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Sign up</p>
+                <h2 className="mt-3 text-3xl font-black">Create your account</h2>
+              </div>
+              <Form {...signUpForm}>
+                <form className="space-y-5" onSubmit={signUpForm.handleSubmit(handleSignUp)}>
+                  <FormField
+                    control={signUpForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Ayush" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signUpForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" placeholder="you@example.com" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signUpForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="password" placeholder="At least 6 characters" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {signUpForm.formState.errors.root ? (
+                    <div className="rounded-neo border-brutal bg-red-50 px-4 py-3 text-sm text-danger">
+                      {signUpForm.formState.errors.root.message}
+                    </div>
+                  ) : null}
+                  <Button type="submit" size="lg" className="w-full" disabled={signUpForm.formState.isSubmitting}>
+                    {signUpForm.formState.isSubmitting ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="size-4" />
+                    )}
+                    {signUpForm.formState.isSubmitting ? "Sending code..." : "Create account"}
+                  </Button>
+                </form>
+              </Form>
+            </>
+          ) : (
+            <>
+              <div className="mb-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Verify email</p>
+                <h2 className="mt-3 text-3xl font-black">Enter the code we sent to {currentEmail}</h2>
+              </div>
+              <Form {...otpForm}>
+                <form className="space-y-5" onSubmit={otpForm.handleSubmit(handleVerify)}>
+                  <FormField
+                    control={otpForm.control}
+                    name="otp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>6-digit code</FormLabel>
+                        <FormControl>
+                          <InputOTP maxLength={6} value={field.value} onChange={field.onChange}>
+                            <InputOTPGroup>
+                              {Array.from({ length: 6 }).map((_, index) => (
+                                <InputOTPSlot key={index} index={index} />
+                              ))}
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {otpForm.formState.errors.root ? (
+                    <div className="rounded-neo border-brutal bg-red-50 px-4 py-3 text-sm text-danger">
+                      {otpForm.formState.errors.root.message}
+                    </div>
+                  ) : null}
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="submit" size="lg" className="flex-1" disabled={otpForm.formState.isSubmitting}>
+                      {otpForm.formState.isSubmitting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <UserPlus className="size-4" />
+                      )}
+                      Verify and enter app
+                    </Button>
+                    <Button type="button" variant="outline" size="lg" onClick={handleResend}>
+                      Resend
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </>
           )}
-
-          <div className="space-y-2">
-            <label htmlFor="name" className="text-sm font-medium text-ink flex items-center gap-2">
-              <User size={16} /> Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              className="w-full border-brutal rounded-neo px-4 py-3 bg-paper-1 text-ink placeholder:text-taupe focus:outline-none focus:ring-2 focus:ring-ink transition-shadow"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-ink flex items-center gap-2">
-              <Mail size={16} /> Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className="w-full border-brutal rounded-neo px-4 py-3 bg-paper-1 text-ink placeholder:text-taupe focus:outline-none focus:ring-2 focus:ring-ink transition-shadow"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-ink flex items-center gap-2">
-              <Lock size={16} /> Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              placeholder="Min 6 characters"
-              className="w-full border-brutal rounded-neo px-4 py-3 bg-paper-1 text-ink placeholder:text-taupe focus:outline-none focus:ring-2 focus:ring-ink transition-shadow"
-            />
-          </div>
-
-          <motion.button
-            type="submit"
-            disabled={loading}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full flex items-center justify-center gap-2 border-brutal-thick rounded-neo bg-cta text-ink font-semibold py-3 px-4 shadow-brutal-sm hover:shadow-brutal transition-all disabled:opacity-60"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-            {loading ? "Sending code..." : "Create Account"}
-          </motion.button>
-
-          <p className="text-center text-sm text-taupe mt-4">
+          <p className="mt-6 text-sm text-taupe">
             Already have an account?{" "}
-            <Link href="/auth/signin" className="text-cobalt font-medium hover:underline">
+            <Link href="/auth/signin" className="font-semibold text-ink underline underline-offset-4">
               Sign in
             </Link>
           </p>
-        </form>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

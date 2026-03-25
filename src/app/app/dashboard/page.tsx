@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/browser"
+import { FirstRunHint, InlineErrorState } from "@/components/app/screen-states"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/ui/stat-card"
 import { useExpiringReceipts, useGoals, useHealthScore, useTransactionSummary, useTransactions } from "@/lib/hooks"
@@ -145,8 +146,12 @@ export default function DashboardPage() {
     },
   ]
 
+  const hasError =
+    summary.isError || transactions.isError || goals.isError || health.isError || expiringReceipts.isError
+  const isFirstRun = !transactions.isLoading && !transactions.data?.length && !activeGoals.length
+
   return (
-    <div className="space-y-8 p-8">
+    <div className="space-y-8">
       <motion.section
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -179,7 +184,7 @@ export default function DashboardPage() {
                 href={`/app/zine/${new Date().toISOString().slice(0, 7)}`}
                 className="inline-flex items-center gap-2 rounded-neo border-brutal bg-paper-2 px-4 py-3 text-sm font-semibold text-ink transition-all hover:bg-paper-1"
               >
-                Read this month's zine
+                Read this month&apos;s zine
                 <CalendarDays size={16} />
               </Link>
               <Link
@@ -242,6 +247,27 @@ export default function DashboardPage() {
           </div>
         </div>
       </motion.section>
+
+      {hasError ? (
+        <InlineErrorState
+          title="Some dashboard blocks could not be refreshed"
+          description="Retry the queries from here. The rest of the shell is still usable."
+          onRetry={() => {
+            summary.refetch()
+            transactions.refetch()
+            goals.refetch()
+            health.refetch()
+            expiringReceipts.refetch()
+          }}
+        />
+      ) : null}
+
+      {isFirstRun ? (
+        <FirstRunHint
+          title="Import a statement or add one transaction to wake the dashboard up."
+          description="The cockpit gets sharper once it has real ledger activity, at least one goal, and a couple of receipts to watch."
+        />
+      ) : null}
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card, index) => (

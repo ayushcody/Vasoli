@@ -1,209 +1,495 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
-    Receipt, Plus, Filter, AlertTriangle, CheckCircle2,
-    Clock, FileSpreadsheet, Smartphone, Camera, Calendar
+  ArrowDownUp,
+  Download,
+  FileSpreadsheet,
+  MoreHorizontal,
+  Plus,
+  ReceiptText,
+  Search,
+  Trash2,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { format } from "date-fns";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { StatementImporter } from "@/components/import/statement-importer";
+import { FirstRunHint, InlineErrorState, ScreenEmptyState, TableSkeleton } from "@/components/app/screen-states";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-    transactionClient,
-    insightsClient
-} from "@/lib/rpc/clients";
-import { Transaction } from "@/gen/vasoli/v1/transaction_pb";
-import { GetSummaryResponse } from "@/gen/vasoli/v1/insights_pb";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  useCreateTransaction,
+  useDeleteTransaction,
+  useTransactionSummary,
+  useTransactions,
+  useUpdateTransaction,
+  type Transaction,
+} from "@/lib/hooks";
+import { track } from "@/lib/analytics";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
-interface TransactionData {
-    id: string;
-    date: string;
-    amount: number;
-    type: string;
-    merchantRaw: string | null;
-    merchantNorm: string | null;
-    description: string | null;
-    status: string;
-    provenance: string;
-    category: { name: string; icon: string; color: string } | null;
+const transactionSchema = z.object({
+  description: z.string().min(2, "Add a short description."),
+  amount: z.coerce.number().positive("Amount must be greater than zero."),
+  date: z.string().min(1, "Pick a transaction date."),
+  type: z.enum(["INCOME", "EXPENSE"]),
+});
+
+type TransactionFormValues = z.infer<typeof transactionSchema>;
+
+type SortKey = "date" | "amount" | "description";
+type TypeFilter = "ALL" | "INCOME" | "EXPENSE";
+
+function exportTransactionsCsv(rows: Transaction[]) {
+  const header = ["Date", "Description", "Type", "Amount"];
+  const body = rows.map((row) =>
+    [formatDate(row.date), row.description, row.type, row.amount.toString()]
+      .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+      .join(","),
+  );
+  const csv = [header.join(","), ...body].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "vasoli-transactions.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
-
-interface SummaryData {
-    totalIncome: number;
-    totalExpense: number;
-    balance: number;
-}
-
-const PROVENANCE_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
-    MANUAL: { label: "Manual", icon: Plus, color: "bg-paper-2 text-ink" },
-    STATEMENT_IMPORT: { label: "Imported", icon: FileSpreadsheet, color: "bg-cobalt/15 text-cobalt" },
-    UPI_PAYMENT_INITIATED: { label: "UPI", icon: Smartphone, color: "bg-grape/15 text-grape" },
-    RECEIPT_DERIVED: { label: "Receipt", icon: Camera, color: "bg-teal/15 text-teal" },
-};
 
 export default function TransactionsPage() {
-    const [transactions, setTransactions] = useState<TransactionData[]>([]);
-    const [summary, setSummary] = useState<SummaryData | null>(null);
-    const [filter, setFilter] = useState<string>("all");
-    const [loading, setLoading] = useState(true);
+  const transactionsQuery = useTransactions({ pageSize: 200 });
+  const summaryQuery = useTransactionSummary();
+  const createTransaction = useCreateTransaction();
+  const updateTransaction = useUpdateTransaction();
+  const deleteTransaction = useDeleteTransaction();
 
-    useEffect(() => {
-        const currentMonth = format(new Date(), "yyyy-MM");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [page, setPage] = useState(1);
+  const [isImporterOpen, setImporterOpen] = useState(false);
+  const [isEditorOpen, setEditorOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-        Promise.all([
-            transactionClient.listTransactions({}),
-            insightsClient.getSummary({ monthYear: currentMonth }),
-        ]).then(([txnsRes, sumRes]) => {
-            setTransactions(txnsRes.transactions.map(t => ({
-                id: t.id,
-                date: t.date?.toDate().toISOString() || new Date().toISOString(),
-                amount: Number(t.amountPaise) / 100,
-                type: t.type,
-                merchantRaw: t.merchantRaw,
-                description: t.description,
-                status: t.status,
-                provenance: t.provenance,
-                category: t.categoryId ? { name: "Category", icon: "📝", color: "bg-taupe/20" } : null,
-                merchantNorm: t.merchantNorm,
-            })));
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      description: "",
+      amount: 0,
+      date: new Date().toISOString().slice(0, 10),
+      type: "EXPENSE",
+    },
+  });
 
-            if (sumRes) {
-                setSummary({
-                    totalIncome: Number(sumRes.totalIncomePaise) / 100,
-                    totalExpense: Number(sumRes.totalExpensePaise) / 100,
-                    balance: Number(sumRes.balancePaise) / 100,
-                });
-            }
-            setLoading(false);
-        }).catch(err => {
-            console.error("RPC error:", err);
-            setLoading(false);
-        });
-    }, []);
+  const transactions = useMemo(() => transactionsQuery.data || [], [transactionsQuery.data]);
+  const pageSize = 8;
 
-    const filtered = transactions.filter((t) => {
-        if (filter === "all") return true;
-        if (filter === "pending") return t.status === "pending";
-        if (filter === "income") return t.type === "INCOME";
-        if (filter === "expense") return t.type === "EXPENSE";
+  const filteredTransactions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const next = transactions.filter((transaction) => {
+      if (typeFilter !== "ALL" && transaction.type !== typeFilter) {
+        return false;
+      }
+
+      if (!query) {
         return true;
+      }
+
+      return [transaction.description, transaction.category?.name || "", transaction.type]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
     });
 
-    return (
-        <div className="p-8">
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                <h1 className="font-serif text-3xl font-bold text-ink mb-1">Transactions</h1>
-                <p className="text-taupe mb-6">All your financial activity with provenance tracking.</p>
-            </motion.div>
+    next.sort((left, right) => {
+      if (sortKey === "amount") {
+        return right.amount - left.amount;
+      }
+      if (sortKey === "description") {
+        return left.description.localeCompare(right.description);
+      }
+      return new Date(right.date).getTime() - new Date(left.date).getTime();
+    });
 
-            {/* Data Freshness Banner */}
-            {summary && (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-brutal rounded-neo bg-mustard/20 p-4 mb-6 flex items-center justify-between gap-4 flex-wrap"
-                >
-                    <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                            <div className={`h-2 w-2 rounded-full bg-success`} />
-                            <span className="text-ink font-medium">
-                                Data is up to date
-                            </span>
-                        </div>
-                    </div>
-                    <div className="flex gap-4 text-sm tabular-nums">
-                        <span className="text-success font-medium">↑ ₹{summary.totalIncome.toLocaleString("en-IN")}</span>
-                        <span className="text-danger font-medium">↓ ₹{summary.totalExpense.toLocaleString("en-IN")}</span>
-                        <span className="text-ink font-bold">= ₹{summary.balance.toLocaleString("en-IN")}</span>
-                    </div>
-                </motion.div>
-            )}
+    return next;
+  }, [search, sortKey, transactions, typeFilter]);
 
-            {/* Filter Tabs */}
-            <div className="flex gap-2 mb-6 flex-wrap">
-                {[
-                    { key: "all", label: "All" },
-                    { key: "expense", label: "Expenses" },
-                    { key: "income", label: "Income" },
-                    { key: "pending", label: "Pending" },
-                ].map((f) => (
-                    <button
-                        key={f.key}
-                        onClick={() => setFilter(f.key)}
-                        className={`border-brutal rounded-neo px-4 py-2 text-sm font-medium transition-all ${filter === f.key
-                            ? "bg-ink text-paper-1 shadow-brutal-sm"
-                            : "bg-paper-2 text-taupe hover:bg-paper-2/80"
-                            }`}
-                    >
-                        {f.label}
-                    </button>
-                ))}
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
+  const pagedTransactions = filteredTransactions.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  function openCreateDialog() {
+    setEditingTransaction(null);
+    form.reset({
+      description: "",
+      amount: 0,
+      date: new Date().toISOString().slice(0, 10),
+      type: "EXPENSE",
+    });
+    setEditorOpen(true);
+  }
+
+  function openEditDialog(transaction: Transaction) {
+    setEditingTransaction(transaction);
+    form.reset({
+      description: transaction.description,
+      amount: transaction.amount,
+      date: transaction.date.slice(0, 10),
+      type: transaction.type,
+    });
+    setEditorOpen(true);
+  }
+
+  async function handleSubmit(values: TransactionFormValues) {
+    if (editingTransaction) {
+      await updateTransaction.mutateAsync({
+        id: editingTransaction.id,
+        data: values,
+      });
+      track("transaction_updated", { type: values.type });
+    } else {
+      await createTransaction.mutateAsync(values);
+      track("transaction_created", { type: values.type });
+    }
+
+    setEditorOpen(false);
+    form.reset();
+  }
+
+  async function handleDelete(transaction: Transaction) {
+    await deleteTransaction.mutateAsync(transaction.id);
+    track("transaction_deleted", { type: transaction.type });
+  }
+
+  function handleExport() {
+    exportTransactionsCsv(filteredTransactions);
+    toast.success("CSV export ready");
+    track("transactions_exported", { rows: filteredTransactions.length });
+  }
+
+  const hasNoTransactions = !transactionsQuery.isLoading && !transactions.length;
+  const hasError = Boolean(transactionsQuery.error || summaryQuery.error);
+
+  return (
+    <div className="space-y-6">
+      <section className="neo-surface-lg p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Transactions</p>
+            <div>
+              <h1 className="text-4xl font-black">Clean ledger review, not a raw dump.</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-taupe">
+                Search, filter, import statements, add manual corrections, and export the current table without leaving the screen.
+              </p>
             </div>
-
-            {/* Transaction List */}
-            {loading ? (
-                <div className="text-center py-12 text-taupe">Loading...</div>
-            ) : filtered.length === 0 ? (
-                <div className="border-brutal-thick rounded-neo-md bg-paper-2 p-12 shadow-brutal text-center">
-                    <div className="text-5xl mb-4">📋</div>
-                    <p className="text-taupe">No transactions found. Import a statement or add one manually.</p>
-                </div>
-            ) : (
-                <div className="space-y-2">
-                    <AnimatePresence>
-                        {filtered.map((txn, i) => {
-                            const prov = PROVENANCE_CONFIG[txn.provenance] || PROVENANCE_CONFIG.manual;
-                            const ProvIcon = prov.icon;
-
-                            return (
-                                <motion.div
-                                    key={txn.id}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.02 }}
-                                    className="border-brutal rounded-neo bg-paper-2 p-4 flex items-center gap-4 hover:shadow-brutal-sm transition-all"
-                                >
-                                    {/* Category emoji */}
-                                    <div className="text-2xl flex-shrink-0 w-10 text-center">
-                                        {txn.category?.icon || "📝"}
-                                    </div>
-
-                                    {/* Details */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-ink text-sm truncate">
-                                                {txn.merchantRaw || txn.description || "Unknown"}
-                                            </span>
-                                            {txn.status === "pending" && (
-                                                <span className="text-xs border-brutal rounded-full px-2 py-0.5 bg-warning/20 text-ink flex items-center gap-1">
-                                                    <Clock size={10} /> Pending
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-xs text-taupe">
-                                                {new Date(txn.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                                            </span>
-                                            {txn.category && (
-                                                <span className="text-xs text-taupe">{txn.category.name}</span>
-                                            )}
-                                            <span className={`text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ${prov.color}`}>
-                                                <ProvIcon size={10} />
-                                                {prov.label}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Amount */}
-                                    <div className={`text-right font-bold font-serif tabular-nums ${txn.type === "INCOME" ? "text-success" : "text-ink"}`}>
-                                        {txn.type === "INCOME" ? "+" : "-"}₹{txn.amount.toLocaleString("en-IN")}
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
-            )}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1.25rem] border-brutal bg-paper-1 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-taupe">Balance</p>
+              <p className="mt-2 text-2xl font-black">{formatCurrency(summaryQuery.data?.balance || 0)}</p>
+            </div>
+            <div className="rounded-[1.25rem] border-brutal bg-paper-1 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-taupe">Income</p>
+              <p className="mt-2 text-2xl font-black">{formatCurrency(summaryQuery.data?.totalIncome || 0)}</p>
+            </div>
+            <div className="rounded-[1.25rem] border-brutal bg-paper-1 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-taupe">Expenses</p>
+              <p className="mt-2 text-2xl font-black">{formatCurrency(summaryQuery.data?.totalExpenses || 0)}</p>
+            </div>
+          </div>
         </div>
-    );
+      </section>
+
+      <FirstRunHint
+        title="Import one statement first, then use manual entries only for cleanup."
+        description="That keeps your ledger trustworthy and avoids turning the app into another spreadsheet you have to babysit."
+      />
+
+      <section className="neo-surface p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-1 flex-col gap-3 md:flex-row">
+            <label className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-taupe" />
+              <Input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search description, type, or category"
+                className="pl-9"
+                aria-label="Search transactions"
+              />
+            </label>
+            <Select value={typeFilter} onValueChange={(value: TypeFilter) => setTypeFilter(value)}>
+              <SelectTrigger className="w-full md:w-44">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All types</SelectItem>
+                <SelectItem value="INCOME">Income</SelectItem>
+                <SelectItem value="EXPENSE">Expense</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortKey} onValueChange={(value: SortKey) => setSortKey(value)}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Newest first</SelectItem>
+                <SelectItem value="amount">Largest amount</SelectItem>
+                <SelectItem value="description">Description A-Z</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Dialog open={isImporterOpen} onOpenChange={setImporterOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileSpreadsheet className="size-4" />
+                  Import statement
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Import a statement</DialogTitle>
+                  <DialogDescription>Bring in a bank file, then refine the ledger from the table.</DialogDescription>
+                </DialogHeader>
+                <StatementImporter />
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isEditorOpen} onOpenChange={setEditorOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openCreateDialog}>
+                  <Plus className="size-4" />
+                  Add transaction
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>{editingTransaction ? "Edit transaction" : "Add transaction"}</DialogTitle>
+                  <DialogDescription>
+                    Use manual entries for corrections, one-off expenses, or missing income.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form className="space-y-5" onSubmit={form.handleSubmit(handleSubmit)}>
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Swiggy, salary, rent, refund..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="amount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Amount (INR)</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" min="0" step="0.01" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="EXPENSE">Expense</SelectItem>
+                              <SelectItem value="INCOME">Income</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                      {editingTransaction ? "Save changes" : "Create transaction"}
+                    </Button>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" onClick={handleExport} disabled={!filteredTransactions.length}>
+              <Download className="size-4" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {hasError ? (
+        <InlineErrorState
+          title="Transactions could not be loaded"
+          description="The ledger or summary query failed. Retry both requests from here."
+          onRetry={() => {
+            transactionsQuery.refetch();
+            summaryQuery.refetch();
+          }}
+        />
+      ) : null}
+
+      {transactionsQuery.isLoading ? (
+        <TableSkeleton rows={8} />
+      ) : hasNoTransactions ? (
+        <ScreenEmptyState
+          icon={ReceiptText}
+          title="No transactions yet"
+          description="Import a bank file or add your first transaction manually. The dashboard and zine become useful once the ledger has at least a little history."
+          cta={{ label: "Import statement", onClick: () => setImporterOpen(true) }}
+        />
+      ) : (
+        <section className="neo-surface overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-14" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pagedTransactions.map((transaction) => (
+                <TableRow key={transaction.id}>
+                  <TableCell>{formatDate(transaction.date)}</TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <p className="font-semibold">{transaction.description}</p>
+                      <p className="text-xs text-main-foreground/70">{transaction.category?.name || "Unfiled"}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={transaction.type === "INCOME" ? "default" : "neutral"}>{transaction.type}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    <span className={transaction.type === "INCOME" ? "text-teal" : ""}>
+                      {transaction.type === "INCOME" ? "+" : "-"}
+                      {formatCurrency(transaction.amount)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={`Open actions for ${transaction.description}`}>
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditDialog(transaction)}>
+                          <ArrowDownUp className="size-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDelete(transaction)}>
+                          <Trash2 className="size-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="flex flex-col gap-3 border-t-brutal bg-paper-1 px-4 py-4 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-taupe">
+              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredTransactions.length)} of{" "}
+              {filteredTransactions.length}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page === 1}>
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
 }

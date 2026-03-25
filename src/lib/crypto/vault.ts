@@ -7,8 +7,6 @@
  * - Salt and IV stored alongside ciphertext, passphrase NEVER stored.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const PBKDF2_ITERATIONS = 100_000;
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;

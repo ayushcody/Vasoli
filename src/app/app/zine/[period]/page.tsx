@@ -225,11 +225,11 @@ export default function ZinePage() {
   }
 
   if (!data) {
-    return <div className="p-8 text-center text-taupe">No zine data available for this month.</div>
+    return <div className="neo-surface-lg p-8 text-center text-taupe">No zine data available for this month.</div>
   }
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="space-y-8">
       <motion.section
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}

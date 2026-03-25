@@ -116,7 +116,7 @@ export default function GoalsPage() {
     const totalSaved = activeGoals.reduce((s, g) => s + g.currentAmount, 0);
 
     return (
-        <div className="p-8">
+        <div className="space-y-6">
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -175,7 +175,7 @@ export default function GoalsPage() {
                     <div className="text-6xl mb-4">🎯</div>
                     <h3 className="font-serif text-xl font-bold text-ink mb-2">No Goals Yet</h3>
                     <p className="text-taupe mb-6 max-w-md mx-auto">
-                        Set a savings goal to start tracking your progress. Whether it's an emergency fund, a vacation, or a new gadget — Vasoli will help you get there.
+                        Set a savings goal to start tracking your progress. Whether it&apos;s an emergency fund, a vacation, or a new gadget — Vasoli will help you get there.
                     </p>
                     <motion.button
                         whileHover={{ scale: 1.02 }}

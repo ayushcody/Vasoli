@@ -73,12 +73,12 @@ export default function CashflowPage() {
 
     if (loading) {
         return (
-            <div className="p-8 text-center text-taupe">Loading cashflow data...</div>
+            <div className="neo-surface-lg p-8 text-center text-taupe">Loading cashflow data...</div>
         );
     }
 
     return (
-        <div className="p-8">
+        <div className="space-y-6">
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <h1 className="font-serif text-3xl font-bold text-ink mb-1">Cashflow Radar</h1>
                 <p className="text-taupe mb-6">Your 60-day financial forecast</p>

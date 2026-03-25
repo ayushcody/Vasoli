@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X } from "lucide-react";
 import { importClient } from "@/lib/rpc/clients";
+import { track } from "@/lib/analytics";
 
 interface ImportResultData {
     batchId: string;
@@ -43,6 +44,11 @@ export function StatementImporter() {
                     parsedCount: res.parsedCount,
                     createdCount: res.createdCount,
                     matchedCount: res.matchedCount,
+                });
+                track("statement_imported", {
+                    format,
+                    createdCount: res.createdCount,
+                    parsedCount: res.parsedCount,
                 });
             } catch (err: any) {
                 console.error("Import error:", err);

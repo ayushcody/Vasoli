@@ -50,12 +50,15 @@
     --overlay: rgba(26, 26, 26, 0.36);
     
     /* Neo-Brutal specific */
+    --radius: 1rem;
+    --radius-lg: 1.5rem;
     --border-width: 1.5px;
     --border-width-thick: 2px;
     --box-shadow-x: 4px;
     --box-shadow-y: 4px;
     --shadow-brutal: 4px 4px 0 var(--ink);
     --shadow-brutal-sm: 2px 2px 0 var(--ink);
+    --shadow-brutal-lg: 8px 8px 0 var(--ink);
   }
 }
 
@@ -64,14 +67,33 @@
     @apply border-border;
   }
   
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+    background-image:
+      radial-gradient(circle at top left, rgba(246, 221, 77, 0.18), transparent 30%),
+      linear-gradient(rgba(162, 137, 125, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(162, 137, 125, 0.08) 1px, transparent 1px);
+    background-size: auto, 28px 28px, 28px 28px;
   }
   
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-fraunces), serif;
     font-weight: 700;
+  }
+
+  ::selection {
+    background: var(--mustard);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
   }
   
   /* Tabular numbers for amounts */
@@ -97,6 +119,10 @@
     box-shadow: var(--shadow-brutal-sm);
   }
 
+  .shadow-brutal-lg {
+    box-shadow: var(--shadow-brutal-lg);
+  }
+
   .shadow-brutal-hover {
     box-shadow: 6px 6px 0 var(--ink);
   }
@@ -120,5 +146,13 @@
   .divider-brutal {
     border-top: var(--border-width) solid var(--ink);
     opacity: 0.3;
+  }
+
+  .neo-surface {
+    @apply rounded-[var(--radius)] border-brutal bg-paper-2 shadow-brutal;
+  }
+
+  .neo-surface-lg {
+    @apply rounded-[var(--radius-lg)] border-brutal-thick bg-paper-2 shadow-brutal-lg;
   }
 }
