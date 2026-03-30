@@ -23,6 +23,7 @@ message Budget {
   string user_id = 8;
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp updated_at = 10;
+  int64 spent_paise = 11;
 }
 
 message CreateBudgetRequest {

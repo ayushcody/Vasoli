@@ -99,12 +99,6 @@ function exportTransactionsCsv(rows: Transaction[]) {
 }
 
 export default function TransactionsPage() {
-  const transactionsQuery = useTransactions({ pageSize: 200 });
-  const summaryQuery = useTransactionSummary();
-  const createTransaction = useCreateTransaction();
-  const updateTransaction = useUpdateTransaction();
-  const deleteTransaction = useDeleteTransaction();
-
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -112,6 +106,15 @@ export default function TransactionsPage() {
   const [isImporterOpen, setImporterOpen] = useState(false);
   const [isEditorOpen, setEditorOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  const transactionsQuery = useTransactions({
+    pageSize: 200,
+    type: typeFilter === "ALL" ? undefined : typeFilter,
+  });
+  const summaryQuery = useTransactionSummary();
+  const createTransaction = useCreateTransaction();
+  const updateTransaction = useUpdateTransaction();
+  const deleteTransaction = useDeleteTransaction();
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
@@ -129,15 +132,11 @@ export default function TransactionsPage() {
   const filteredTransactions = useMemo(() => {
     const query = search.trim().toLowerCase();
     const next = transactions.filter((transaction) => {
-      if (typeFilter !== "ALL" && transaction.type !== typeFilter) {
-        return false;
-      }
-
       if (!query) {
         return true;
       }
 
-      return [transaction.description, transaction.category?.name || "", transaction.type]
+      return [transaction.description, transaction.category?.name || "Uncategorised", transaction.type]
         .join(" ")
         .toLowerCase()
         .includes(query);
@@ -154,7 +153,7 @@ export default function TransactionsPage() {
     });
 
     return next;
-  }, [search, sortKey, transactions, typeFilter]);
+  }, [search, sortKey, transactions]);
 
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
   const pagedTransactions = filteredTransactions.slice((page - 1) * pageSize, page * pageSize);
@@ -435,7 +434,7 @@ export default function TransactionsPage() {
                   <TableCell>
                     <div className="space-y-1">
                       <p className="font-semibold">{transaction.description}</p>
-                      <p className="text-xs text-main-foreground/70">{transaction.category?.name || "Unfiled"}</p>
+                      <p className="text-xs text-main-foreground/70">{transaction.category?.name || "Uncategorised"}</p>
                     </div>
                   </TableCell>
                   <TableCell>

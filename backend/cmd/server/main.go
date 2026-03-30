@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -20,21 +20,24 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
 	// 0. Load .env file
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Note: .env file not found, using system environment variables")
+		slog.Info("env file not found, using system environment variables")
 	}
 
 	// 1. Get environment variables
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		log.Println("DATABASE_URL not set, using placeholder")
+		slog.Warn("DATABASE_URL not set, using placeholder")
 	}
 
 	jwtSecret := os.Getenv("SUPABASE_JWT_SECRET")
 	if jwtSecret == "" {
-		log.Println("SUPABASE_JWT_SECRET not set, using placeholder")
+		slog.Warn("SUPABASE_JWT_SECRET not set, using placeholder")
 	}
 
 	corsOrigins := os.Getenv("CORS_ORIGINS")
@@ -49,11 +52,11 @@ func main() {
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
-		log.Printf("Warning: Unable to create database pool: %v\n", err)
+		slog.Error("unable to create database pool", "error", err)
 	} else {
 		defer pool.Close()
 		if err := pool.Ping(ctx); err != nil {
-			log.Printf("Warning: Unable to ping database: %v\n", err)
+			slog.Error("unable to ping database", "error", err)
 		}
 	}
 
@@ -65,7 +68,7 @@ func main() {
 	_ = dbQueries // Used to register services shortly...
 
 	// Create Interceptors
-	interceptors := connect.WithInterceptors(api.NewAuthInterceptor(jwtSecret))
+	interceptors := connect.WithInterceptors(api.NewLoggingInterceptor(), api.NewAuthInterceptor(jwtSecret))
 
 	// Base mux for /rpc
 	rpcMux := http.NewServeMux()
@@ -84,7 +87,7 @@ func main() {
 
 	// Main mux
 	mux := http.NewServeMux()
-	
+
 	// Health check endpoint (no auth)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -98,16 +101,17 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "Connect-Protocol-Version"},
-		ExposedHeaders:   []string{"Grpc-Status", "Grpc-Message", "Grpc-Status-Details-Bin", "X-Grpc-Test"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "Connect-Protocol-Version", "X-Request-Id"},
+		ExposedHeaders:   []string{"Grpc-Status", "Grpc-Message", "Grpc-Status-Details-Bin", "X-Grpc-Test", "X-Request-Id"},
 		AllowCredentials: true,
 	})
 
-	handler := c.Handler(h2c.NewHandler(mux, &http2.Server{}))
+	handler := api.RequestIDMiddleware(c.Handler(h2c.NewHandler(mux, &http2.Server{})))
 
-	log.Println("Starting Vasoli gRPC server on :8080...")
+	slog.Info("starting Vasoli gRPC server", "address", "localhost:8080")
 	err = http.ListenAndServe("localhost:8080", handler)
 	if err != nil {
-		log.Fatalf("Server failed: %v", err)
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
 	}
 }

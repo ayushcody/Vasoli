@@ -1,6 +1,7 @@
 import {
   BookOpenText,
   BriefcaseBusiness,
+  ChartNoAxesColumn,
   CreditCard,
   FileStack,
   Gauge,
@@ -83,6 +84,13 @@ const appRouteRegistry: NavigationItem[] = [
     icon: FileStack,
     description: "Receipts, warranties, and reimbursements",
     group: "Vault",
+  },
+  {
+    title: "Budgets",
+    href: "/app/budgets",
+    icon: ChartNoAxesColumn,
+    description: "Category and period budgets with live spend",
+    group: "Planning",
   },
   {
     title: "Goals",

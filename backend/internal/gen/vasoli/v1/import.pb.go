@@ -87,6 +87,8 @@ type ImportStatementResponse struct {
 	ParsedCount   int32                  `protobuf:"varint,2,opt,name=parsed_count,json=parsedCount,proto3" json:"parsed_count,omitempty"`
 	CreatedCount  int32                  `protobuf:"varint,3,opt,name=created_count,json=createdCount,proto3" json:"created_count,omitempty"`
 	MatchedCount  int32                  `protobuf:"varint,4,opt,name=matched_count,json=matchedCount,proto3" json:"matched_count,omitempty"`
+	FailedCount   int32                  `protobuf:"varint,5,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
+	FailedRows    []*FailedImportRow     `protobuf:"bytes,6,rep,name=failed_rows,json=failedRows,proto3" json:"failed_rows,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,6 +151,80 @@ func (x *ImportStatementResponse) GetMatchedCount() int32 {
 	return 0
 }
 
+func (x *ImportStatementResponse) GetFailedCount() int32 {
+	if x != nil {
+		return x.FailedCount
+	}
+	return 0
+}
+
+func (x *ImportStatementResponse) GetFailedRows() []*FailedImportRow {
+	if x != nil {
+		return x.FailedRows
+	}
+	return nil
+}
+
+type FailedImportRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RowNumber     int32                  `protobuf:"varint,1,opt,name=row_number,json=rowNumber,proto3" json:"row_number,omitempty"`
+	Raw           string                 `protobuf:"bytes,2,opt,name=raw,proto3" json:"raw,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FailedImportRow) Reset() {
+	*x = FailedImportRow{}
+	mi := &file_vasoli_v1_import_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FailedImportRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FailedImportRow) ProtoMessage() {}
+
+func (x *FailedImportRow) ProtoReflect() protoreflect.Message {
+	mi := &file_vasoli_v1_import_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FailedImportRow.ProtoReflect.Descriptor instead.
+func (*FailedImportRow) Descriptor() ([]byte, []int) {
+	return file_vasoli_v1_import_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *FailedImportRow) GetRowNumber() int32 {
+	if x != nil {
+		return x.RowNumber
+	}
+	return 0
+}
+
+func (x *FailedImportRow) GetRaw() string {
+	if x != nil {
+		return x.Raw
+	}
+	return ""
+}
+
+func (x *FailedImportRow) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_vasoli_v1_import_proto protoreflect.FileDescriptor
 
 const file_vasoli_v1_import_proto_rawDesc = "" +
@@ -158,12 +234,20 @@ const file_vasoli_v1_import_proto_rawDesc = "" +
 	"\x04file\x18\x01 \x01(\fR\x04file\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12&\n" +
 	"\fmapping_json\x18\x03 \x01(\tH\x00R\vmappingJson\x88\x01\x01B\x0f\n" +
-	"\r_mapping_json\"\xa1\x01\n" +
+	"\r_mapping_json\"\x81\x02\n" +
 	"\x17ImportStatementResponse\x12\x19\n" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12!\n" +
 	"\fparsed_count\x18\x02 \x01(\x05R\vparsedCount\x12#\n" +
 	"\rcreated_count\x18\x03 \x01(\x05R\fcreatedCount\x12#\n" +
-	"\rmatched_count\x18\x04 \x01(\x05R\fmatchedCount2i\n" +
+	"\rmatched_count\x18\x04 \x01(\x05R\fmatchedCount\x12!\n" +
+	"\ffailed_count\x18\x05 \x01(\x05R\vfailedCount\x12;\n" +
+	"\vfailed_rows\x18\x06 \x03(\v2\x1a.vasoli.v1.FailedImportRowR\n" +
+	"failedRows\"Z\n" +
+	"\x0fFailedImportRow\x12\x1d\n" +
+	"\n" +
+	"row_number\x18\x01 \x01(\x05R\trowNumber\x12\x10\n" +
+	"\x03raw\x18\x02 \x01(\tR\x03raw\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason2i\n" +
 	"\rImportService\x12X\n" +
 	"\x0fImportStatement\x12!.vasoli.v1.ImportStatementRequest\x1a\".vasoli.v1.ImportStatementResponseB'Z%vasoli-backend/internal/gen/vasoli/v1b\x06proto3"
 
@@ -179,19 +263,21 @@ func file_vasoli_v1_import_proto_rawDescGZIP() []byte {
 	return file_vasoli_v1_import_proto_rawDescData
 }
 
-var file_vasoli_v1_import_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_vasoli_v1_import_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_vasoli_v1_import_proto_goTypes = []any{
 	(*ImportStatementRequest)(nil),  // 0: vasoli.v1.ImportStatementRequest
 	(*ImportStatementResponse)(nil), // 1: vasoli.v1.ImportStatementResponse
+	(*FailedImportRow)(nil),         // 2: vasoli.v1.FailedImportRow
 }
 var file_vasoli_v1_import_proto_depIdxs = []int32{
-	0, // 0: vasoli.v1.ImportService.ImportStatement:input_type -> vasoli.v1.ImportStatementRequest
-	1, // 1: vasoli.v1.ImportService.ImportStatement:output_type -> vasoli.v1.ImportStatementResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: vasoli.v1.ImportStatementResponse.failed_rows:type_name -> vasoli.v1.FailedImportRow
+	0, // 1: vasoli.v1.ImportService.ImportStatement:input_type -> vasoli.v1.ImportStatementRequest
+	1, // 2: vasoli.v1.ImportService.ImportStatement:output_type -> vasoli.v1.ImportStatementResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_vasoli_v1_import_proto_init() }
@@ -206,7 +292,7 @@ func file_vasoli_v1_import_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vasoli_v1_import_proto_rawDesc), len(file_vasoli_v1_import_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

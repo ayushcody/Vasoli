@@ -196,6 +196,10 @@ type UpdateRuleRequest struct {
 	AmountPaise   *int64                 `protobuf:"varint,2,opt,name=amount_paise,json=amountPaise,proto3,oneof" json:"amount_paise,omitempty"`
 	Cadence       *string                `protobuf:"bytes,3,opt,name=cadence,proto3,oneof" json:"cadence,omitempty"`
 	Active        *bool                  `protobuf:"varint,4,opt,name=active,proto3,oneof" json:"active,omitempty"`
+	NextDueDate   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=next_due_date,json=nextDueDate,proto3,oneof" json:"next_due_date,omitempty"`
+	MerchantNorm  *string                `protobuf:"bytes,6,opt,name=merchant_norm,json=merchantNorm,proto3,oneof" json:"merchant_norm,omitempty"`
+	Type          *string                `protobuf:"bytes,7,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	CategoryId    *string                `protobuf:"bytes,8,opt,name=category_id,json=categoryId,proto3,oneof" json:"category_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -256,6 +260,34 @@ func (x *UpdateRuleRequest) GetActive() bool {
 		return *x.Active
 	}
 	return false
+}
+
+func (x *UpdateRuleRequest) GetNextDueDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NextDueDate
+	}
+	return nil
+}
+
+func (x *UpdateRuleRequest) GetMerchantNorm() string {
+	if x != nil && x.MerchantNorm != nil {
+		return *x.MerchantNorm
+	}
+	return ""
+}
+
+func (x *UpdateRuleRequest) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *UpdateRuleRequest) GetCategoryId() string {
+	if x != nil && x.CategoryId != nil {
+		return *x.CategoryId
+	}
+	return ""
 }
 
 type UpdateRuleResponse struct {
@@ -552,6 +584,8 @@ type CreateRuleFromCandidateRequest struct {
 	AmountPaise   int64                  `protobuf:"varint,2,opt,name=amount_paise,json=amountPaise,proto3" json:"amount_paise,omitempty"`
 	Cadence       string                 `protobuf:"bytes,3,opt,name=cadence,proto3" json:"cadence,omitempty"`
 	NextDueDate   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=next_due_date,json=nextDueDate,proto3" json:"next_due_date,omitempty"`
+	Type          *string                `protobuf:"bytes,5,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	CategoryId    *string                `protobuf:"bytes,6,opt,name=category_id,json=categoryId,proto3,oneof" json:"category_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -614,6 +648,20 @@ func (x *CreateRuleFromCandidateRequest) GetNextDueDate() *timestamppb.Timestamp
 	return nil
 }
 
+func (x *CreateRuleFromCandidateRequest) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *CreateRuleFromCandidateRequest) GetCategoryId() string {
+	if x != nil && x.CategoryId != nil {
+		return *x.CategoryId
+	}
+	return ""
+}
+
 type RecurringRule struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -625,6 +673,8 @@ type RecurringRule struct {
 	Active        bool                   `protobuf:"varint,7,opt,name=active,proto3" json:"active,omitempty"`
 	SnoozedUntil  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=snoozed_until,json=snoozedUntil,proto3,oneof" json:"snoozed_until,omitempty"`
 	CancelledAt   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=cancelled_at,json=cancelledAt,proto3,oneof" json:"cancelled_at,omitempty"`
+	Type          string                 `protobuf:"bytes,10,opt,name=type,proto3" json:"type,omitempty"`
+	CategoryId    *string                `protobuf:"bytes,11,opt,name=category_id,json=categoryId,proto3,oneof" json:"category_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -720,6 +770,20 @@ func (x *RecurringRule) GetCancelledAt() *timestamppb.Timestamp {
 		return x.CancelledAt
 	}
 	return nil
+}
+
+func (x *RecurringRule) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *RecurringRule) GetCategoryId() string {
+	if x != nil && x.CategoryId != nil {
+		return *x.CategoryId
+	}
+	return ""
 }
 
 type CreateRuleFromCandidateResponse struct {
@@ -1049,16 +1113,25 @@ const file_vasoli_v1_recurring_proto_rawDesc = "" +
 	"\x0eGetRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"?\n" +
 	"\x0fGetRuleResponse\x12,\n" +
-	"\x04rule\x18\x01 \x01(\v2\x18.vasoli.v1.RecurringRuleR\x04rule\"\xaf\x01\n" +
+	"\x04rule\x18\x01 \x01(\v2\x18.vasoli.v1.RecurringRuleR\x04rule\"\x9a\x03\n" +
 	"\x11UpdateRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\famount_paise\x18\x02 \x01(\x03H\x00R\vamountPaise\x88\x01\x01\x12\x1d\n" +
 	"\acadence\x18\x03 \x01(\tH\x01R\acadence\x88\x01\x01\x12\x1b\n" +
-	"\x06active\x18\x04 \x01(\bH\x02R\x06active\x88\x01\x01B\x0f\n" +
+	"\x06active\x18\x04 \x01(\bH\x02R\x06active\x88\x01\x01\x12C\n" +
+	"\rnext_due_date\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vnextDueDate\x88\x01\x01\x12(\n" +
+	"\rmerchant_norm\x18\x06 \x01(\tH\x04R\fmerchantNorm\x88\x01\x01\x12\x17\n" +
+	"\x04type\x18\a \x01(\tH\x05R\x04type\x88\x01\x01\x12$\n" +
+	"\vcategory_id\x18\b \x01(\tH\x06R\n" +
+	"categoryId\x88\x01\x01B\x0f\n" +
 	"\r_amount_paiseB\n" +
 	"\n" +
 	"\b_cadenceB\t\n" +
-	"\a_active\"B\n" +
+	"\a_activeB\x10\n" +
+	"\x0e_next_due_dateB\x10\n" +
+	"\x0e_merchant_normB\a\n" +
+	"\x05_typeB\x0e\n" +
+	"\f_category_id\"B\n" +
 	"\x12UpdateRuleResponse\x12,\n" +
 	"\x04rule\x18\x01 \x01(\v2\x18.vasoli.v1.RecurringRuleR\x04rule\"#\n" +
 	"\x11DeleteRuleRequest\x12\x0e\n" +
@@ -1075,12 +1148,17 @@ const file_vasoli_v1_recurring_proto_rawDesc = "" +
 	"\x16ListCandidatesResponse\x12=\n" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v2\x1d.vasoli.v1.RecurringCandidateR\n" +
-	"candidates\"\xc2\x01\n" +
+	"candidates\"\x9a\x02\n" +
 	"\x1eCreateRuleFromCandidateRequest\x12#\n" +
 	"\rmerchant_norm\x18\x01 \x01(\tR\fmerchantNorm\x12!\n" +
 	"\famount_paise\x18\x02 \x01(\x03R\vamountPaise\x12\x18\n" +
 	"\acadence\x18\x03 \x01(\tR\acadence\x12>\n" +
-	"\rnext_due_date\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vnextDueDate\"\x9f\x03\n" +
+	"\rnext_due_date\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vnextDueDate\x12\x17\n" +
+	"\x04type\x18\x05 \x01(\tH\x00R\x04type\x88\x01\x01\x12$\n" +
+	"\vcategory_id\x18\x06 \x01(\tH\x01R\n" +
+	"categoryId\x88\x01\x01B\a\n" +
+	"\x05_typeB\x0e\n" +
+	"\f_category_id\"\xe9\x03\n" +
 	"\rRecurringRule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12#\n" +
@@ -1090,9 +1168,14 @@ const file_vasoli_v1_recurring_proto_rawDesc = "" +
 	"\rnext_due_date\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vnextDueDate\x12\x16\n" +
 	"\x06active\x18\a \x01(\bR\x06active\x12D\n" +
 	"\rsnoozed_until\x18\b \x01(\v2\x1a.google.protobuf.TimestampH\x00R\fsnoozedUntil\x88\x01\x01\x12B\n" +
-	"\fcancelled_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcancelledAt\x88\x01\x01B\x10\n" +
+	"\fcancelled_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcancelledAt\x88\x01\x01\x12\x12\n" +
+	"\x04type\x18\n" +
+	" \x01(\tR\x04type\x12$\n" +
+	"\vcategory_id\x18\v \x01(\tH\x02R\n" +
+	"categoryId\x88\x01\x01B\x10\n" +
 	"\x0e_snoozed_untilB\x0f\n" +
-	"\r_cancelled_at\"O\n" +
+	"\r_cancelled_atB\x0e\n" +
+	"\f_category_id\"O\n" +
 	"\x1fCreateRuleFromCandidateResponse\x12,\n" +
 	"\x04rule\x18\x01 \x01(\v2\x18.vasoli.v1.RecurringRuleR\x04rule\"4\n" +
 	"\x13ListUpcomingRequest\x12\x1d\n" +
@@ -1164,41 +1247,42 @@ var file_vasoli_v1_recurring_proto_goTypes = []any{
 var file_vasoli_v1_recurring_proto_depIdxs = []int32{
 	12, // 0: vasoli.v1.ListRecurringRulesResponse.rules:type_name -> vasoli.v1.RecurringRule
 	12, // 1: vasoli.v1.GetRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
-	12, // 2: vasoli.v1.UpdateRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
-	20, // 3: vasoli.v1.RecurringCandidate.suggested_next_due:type_name -> google.protobuf.Timestamp
-	8,  // 4: vasoli.v1.ListCandidatesResponse.candidates:type_name -> vasoli.v1.RecurringCandidate
-	20, // 5: vasoli.v1.CreateRuleFromCandidateRequest.next_due_date:type_name -> google.protobuf.Timestamp
-	20, // 6: vasoli.v1.RecurringRule.next_due_date:type_name -> google.protobuf.Timestamp
-	20, // 7: vasoli.v1.RecurringRule.snoozed_until:type_name -> google.protobuf.Timestamp
-	20, // 8: vasoli.v1.RecurringRule.cancelled_at:type_name -> google.protobuf.Timestamp
-	12, // 9: vasoli.v1.CreateRuleFromCandidateResponse.rule:type_name -> vasoli.v1.RecurringRule
-	12, // 10: vasoli.v1.ListUpcomingResponse.rules:type_name -> vasoli.v1.RecurringRule
-	20, // 11: vasoli.v1.SnoozeRuleRequest.until_date:type_name -> google.protobuf.Timestamp
-	12, // 12: vasoli.v1.SnoozeRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
-	12, // 13: vasoli.v1.CancelRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
-	9,  // 14: vasoli.v1.RecurringService.ListCandidates:input_type -> vasoli.v1.ListCandidatesRequest
-	11, // 15: vasoli.v1.RecurringService.CreateRuleFromCandidate:input_type -> vasoli.v1.CreateRuleFromCandidateRequest
-	0,  // 16: vasoli.v1.RecurringService.ListRules:input_type -> vasoli.v1.ListRecurringRulesRequest
-	2,  // 17: vasoli.v1.RecurringService.GetRule:input_type -> vasoli.v1.GetRuleRequest
-	4,  // 18: vasoli.v1.RecurringService.UpdateRule:input_type -> vasoli.v1.UpdateRuleRequest
-	6,  // 19: vasoli.v1.RecurringService.DeleteRule:input_type -> vasoli.v1.DeleteRuleRequest
-	14, // 20: vasoli.v1.RecurringService.ListUpcoming:input_type -> vasoli.v1.ListUpcomingRequest
-	16, // 21: vasoli.v1.RecurringService.SnoozeRule:input_type -> vasoli.v1.SnoozeRuleRequest
-	18, // 22: vasoli.v1.RecurringService.CancelRule:input_type -> vasoli.v1.CancelRuleRequest
-	10, // 23: vasoli.v1.RecurringService.ListCandidates:output_type -> vasoli.v1.ListCandidatesResponse
-	13, // 24: vasoli.v1.RecurringService.CreateRuleFromCandidate:output_type -> vasoli.v1.CreateRuleFromCandidateResponse
-	1,  // 25: vasoli.v1.RecurringService.ListRules:output_type -> vasoli.v1.ListRecurringRulesResponse
-	3,  // 26: vasoli.v1.RecurringService.GetRule:output_type -> vasoli.v1.GetRuleResponse
-	5,  // 27: vasoli.v1.RecurringService.UpdateRule:output_type -> vasoli.v1.UpdateRuleResponse
-	7,  // 28: vasoli.v1.RecurringService.DeleteRule:output_type -> vasoli.v1.DeleteRuleResponse
-	15, // 29: vasoli.v1.RecurringService.ListUpcoming:output_type -> vasoli.v1.ListUpcomingResponse
-	17, // 30: vasoli.v1.RecurringService.SnoozeRule:output_type -> vasoli.v1.SnoozeRuleResponse
-	19, // 31: vasoli.v1.RecurringService.CancelRule:output_type -> vasoli.v1.CancelRuleResponse
-	23, // [23:32] is the sub-list for method output_type
-	14, // [14:23] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	20, // 2: vasoli.v1.UpdateRuleRequest.next_due_date:type_name -> google.protobuf.Timestamp
+	12, // 3: vasoli.v1.UpdateRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
+	20, // 4: vasoli.v1.RecurringCandidate.suggested_next_due:type_name -> google.protobuf.Timestamp
+	8,  // 5: vasoli.v1.ListCandidatesResponse.candidates:type_name -> vasoli.v1.RecurringCandidate
+	20, // 6: vasoli.v1.CreateRuleFromCandidateRequest.next_due_date:type_name -> google.protobuf.Timestamp
+	20, // 7: vasoli.v1.RecurringRule.next_due_date:type_name -> google.protobuf.Timestamp
+	20, // 8: vasoli.v1.RecurringRule.snoozed_until:type_name -> google.protobuf.Timestamp
+	20, // 9: vasoli.v1.RecurringRule.cancelled_at:type_name -> google.protobuf.Timestamp
+	12, // 10: vasoli.v1.CreateRuleFromCandidateResponse.rule:type_name -> vasoli.v1.RecurringRule
+	12, // 11: vasoli.v1.ListUpcomingResponse.rules:type_name -> vasoli.v1.RecurringRule
+	20, // 12: vasoli.v1.SnoozeRuleRequest.until_date:type_name -> google.protobuf.Timestamp
+	12, // 13: vasoli.v1.SnoozeRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
+	12, // 14: vasoli.v1.CancelRuleResponse.rule:type_name -> vasoli.v1.RecurringRule
+	9,  // 15: vasoli.v1.RecurringService.ListCandidates:input_type -> vasoli.v1.ListCandidatesRequest
+	11, // 16: vasoli.v1.RecurringService.CreateRuleFromCandidate:input_type -> vasoli.v1.CreateRuleFromCandidateRequest
+	0,  // 17: vasoli.v1.RecurringService.ListRules:input_type -> vasoli.v1.ListRecurringRulesRequest
+	2,  // 18: vasoli.v1.RecurringService.GetRule:input_type -> vasoli.v1.GetRuleRequest
+	4,  // 19: vasoli.v1.RecurringService.UpdateRule:input_type -> vasoli.v1.UpdateRuleRequest
+	6,  // 20: vasoli.v1.RecurringService.DeleteRule:input_type -> vasoli.v1.DeleteRuleRequest
+	14, // 21: vasoli.v1.RecurringService.ListUpcoming:input_type -> vasoli.v1.ListUpcomingRequest
+	16, // 22: vasoli.v1.RecurringService.SnoozeRule:input_type -> vasoli.v1.SnoozeRuleRequest
+	18, // 23: vasoli.v1.RecurringService.CancelRule:input_type -> vasoli.v1.CancelRuleRequest
+	10, // 24: vasoli.v1.RecurringService.ListCandidates:output_type -> vasoli.v1.ListCandidatesResponse
+	13, // 25: vasoli.v1.RecurringService.CreateRuleFromCandidate:output_type -> vasoli.v1.CreateRuleFromCandidateResponse
+	1,  // 26: vasoli.v1.RecurringService.ListRules:output_type -> vasoli.v1.ListRecurringRulesResponse
+	3,  // 27: vasoli.v1.RecurringService.GetRule:output_type -> vasoli.v1.GetRuleResponse
+	5,  // 28: vasoli.v1.RecurringService.UpdateRule:output_type -> vasoli.v1.UpdateRuleResponse
+	7,  // 29: vasoli.v1.RecurringService.DeleteRule:output_type -> vasoli.v1.DeleteRuleResponse
+	15, // 30: vasoli.v1.RecurringService.ListUpcoming:output_type -> vasoli.v1.ListUpcomingResponse
+	17, // 31: vasoli.v1.RecurringService.SnoozeRule:output_type -> vasoli.v1.SnoozeRuleResponse
+	19, // 32: vasoli.v1.RecurringService.CancelRule:output_type -> vasoli.v1.CancelRuleResponse
+	24, // [24:33] is the sub-list for method output_type
+	15, // [15:24] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_vasoli_v1_recurring_proto_init() }
@@ -1207,6 +1291,7 @@ func file_vasoli_v1_recurring_proto_init() {
 		return
 	}
 	file_vasoli_v1_recurring_proto_msgTypes[4].OneofWrappers = []any{}
+	file_vasoli_v1_recurring_proto_msgTypes[11].OneofWrappers = []any{}
 	file_vasoli_v1_recurring_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

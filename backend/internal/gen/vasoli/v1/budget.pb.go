@@ -34,6 +34,7 @@ type Budget struct {
 	UserId        string                 `protobuf:"bytes,8,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SpentPaise    int64                  `protobuf:"varint,11,opt,name=spent_paise,json=spentPaise,proto3" json:"spent_paise,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -136,6 +137,13 @@ func (x *Budget) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Budget) GetSpentPaise() int64 {
+	if x != nil {
+		return x.SpentPaise
+	}
+	return 0
 }
 
 type CreateBudgetRequest struct {
@@ -550,7 +558,7 @@ var File_vasoli_v1_budget_proto protoreflect.FileDescriptor
 
 const file_vasoli_v1_budget_proto_rawDesc = "" +
 	"\n" +
-	"\x16vasoli/v1/budget.proto\x12\tvasoli.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x88\x03\n" +
+	"\x16vasoli/v1/budget.proto\x12\tvasoli.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa9\x03\n" +
 	"\x06Budget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
@@ -567,7 +575,9 @@ const file_vasoli_v1_budget_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf6\x01\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1f\n" +
+	"\vspent_paise\x18\v \x01(\x03R\n" +
+	"spentPaise\"\xf6\x01\n" +
 	"\x13CreateBudgetRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\famount_paise\x18\x02 \x01(\x03R\vamountPaise\x12\x16\n" +

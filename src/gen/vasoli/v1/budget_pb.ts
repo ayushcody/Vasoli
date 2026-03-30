@@ -64,6 +64,11 @@ export class Budget extends Message<Budget> {
    */
   updatedAt?: Timestamp;
 
+  /**
+   * @generated from field: int64 spent_paise = 11;
+   */
+  spentPaise = protoInt64.zero;
+
   constructor(data?: PartialMessage<Budget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -82,6 +87,7 @@ export class Budget extends Message<Budget> {
     { no: 8, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "created_at", kind: "message", T: Timestamp },
     { no: 10, name: "updated_at", kind: "message", T: Timestamp },
+    { no: 11, name: "spent_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Budget {

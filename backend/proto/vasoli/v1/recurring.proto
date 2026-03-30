@@ -36,6 +36,10 @@ message UpdateRuleRequest {
   optional int64 amount_paise = 2;
   optional string cadence = 3;
   optional bool active = 4;
+  optional google.protobuf.Timestamp next_due_date = 5;
+  optional string merchant_norm = 6;
+  optional string type = 7;
+  optional string category_id = 8;
 }
 
 message UpdateRuleResponse {
@@ -68,6 +72,8 @@ message CreateRuleFromCandidateRequest {
   int64 amount_paise = 2;
   string cadence = 3;
   google.protobuf.Timestamp next_due_date = 4;
+  optional string type = 5;
+  optional string category_id = 6;
 }
 
 message RecurringRule {
@@ -80,6 +86,8 @@ message RecurringRule {
   bool active = 7;
   optional google.protobuf.Timestamp snoozed_until = 8;
   optional google.protobuf.Timestamp cancelled_at = 9;
+  string type = 10;
+  optional string category_id = 11;
 }
 
 message CreateRuleFromCandidateResponse {

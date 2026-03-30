@@ -2,10 +2,14 @@ package api
 
 import (
 	"context"
+	"errors"
+	"math"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"vasoli-backend/internal/db"
 	pb "vasoli-backend/internal/gen/vasoli/v1"
@@ -16,100 +20,242 @@ type InsightsService struct {
 }
 
 func (s *InsightsService) GetSummary(ctx context.Context, req *connect.Request[pb.GetSummaryRequest]) (*connect.Response[pb.GetSummaryResponse], error) {
-	userID, err := UserIDFromContext(ctx)
+	userUUID, err := authenticatedUserUUID(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
-	var userUUID pgtype.UUID
-	_ = userUUID.Scan(userID)
-
-	// Naive date parsing of YYYY-MM
-	startDate, err := time.Parse("2006-01", req.Msg.MonthYear)
-	if err != nil {
-		// Default to current month if bad format
-		now := time.Now()
-		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	}
-	endDate := startDate.AddDate(0, 1, 0)
-
-	analytics, err := s.DB.GetWealthAnalytics(ctx, db.GetWealthAnalyticsParams{
+	startDate, endDate := monthRange(req.Msg.MonthYear, time.Now().UTC())
+	totals, err := s.DB.GetSummaryTotals(ctx, db.GetSummaryTotalsParams{
 		UserID:    userUUID,
-		StartDate: pgtype.Timestamptz{Time: startDate, Valid: true},
-		EndDate:   pgtype.Timestamptz{Time: endDate, Valid: true},
+		StartDate: timestamptz(startDate),
+		EndDate:   timestamptz(endDate),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	// Oh well, for MVP we can use the spent / invested logic
-
 	return connect.NewResponse(&pb.GetSummaryResponse{
-		// Hardcoded derived values for MVP based on existing struct
-		TotalIncomePaise:  analytics.Saved + analytics.Spent, 
-		TotalExpensePaise: analytics.Spent,
-		BalancePaise:      analytics.Saved, 
+		TotalIncomePaise:  totals.TotalIncome,
+		TotalExpensePaise: totals.TotalExpenses,
+		BalancePaise:      totals.NetBalance,
 	}), nil
 }
+
 func (s *InsightsService) GetZine(ctx context.Context, req *connect.Request[pb.GetZineRequest]) (*connect.Response[pb.GetZineResponse], error) {
-	userID, err := UserIDFromContext(ctx)
+	userUUID, err := authenticatedUserUUID(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
-	var userUUID pgtype.UUID
-	_ = userUUID.Scan(userID)
+	now := time.Now().UTC()
+	startDate, endDate := monthRange(req.Msg.MonthYear, now)
+	prevStartDate := startDate.AddDate(0, -1, 0)
+	prevEndDate := startDate
 
-	// Fetch basic analytics for the period
-	startDate, _ := time.Parse("2006-01", req.Msg.MonthYear)
-	endDate := startDate.AddDate(0, 1, 0)
-
-	analytics, _ := s.DB.GetWealthAnalytics(ctx, db.GetWealthAnalyticsParams{
+	currentTotals, err := s.DB.GetSummaryTotals(ctx, db.GetSummaryTotalsParams{
 		UserID:    userUUID,
-		StartDate: pgtype.Timestamptz{Time: startDate, Valid: true},
-		EndDate:   pgtype.Timestamptz{Time: endDate, Valid: true},
+		StartDate: timestamptz(startDate),
+		EndDate:   timestamptz(endDate),
 	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 
-	// For MVP, returning a mix of real basic stats and randomized "insights"
-	// In a real app, this would be computed via complex SQL or AI 
+	prevTotals, err := s.DB.GetSummaryTotals(ctx, db.GetSummaryTotalsParams{
+		UserID:    userUUID,
+		StartDate: timestamptz(prevStartDate),
+		EndDate:   timestamptz(prevEndDate),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	transactionCount, err := s.DB.GetTransactionCountInRange(ctx, db.GetTransactionCountInRangeParams{
+		UserID:    userUUID,
+		StartDate: timestamptz(startDate),
+		EndDate:   timestamptz(endDate),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	categoryRows, err := s.DB.ListTopExpenseCategories(ctx, db.ListTopExpenseCategoriesParams{
+		UserID:     userUUID,
+		StartDate:  timestamptz(startDate),
+		EndDate:    timestamptz(endDate),
+		LimitCount: 3,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	topCategories := make([]*pb.CategoryInsight, 0, len(categoryRows))
+	for _, row := range categoryRows {
+		topCategories = append(topCategories, &pb.CategoryInsight{
+			Name:       row.CategoryName,
+			Icon:       row.CategoryIcon,
+			TotalPaise: row.TotalPaise,
+		})
+	}
+
+	var biggestSpend *pb.SpendInsight
+	biggestSpendRow, err := s.DB.GetBiggestSpendInRange(ctx, db.GetBiggestSpendInRangeParams{
+		UserID:    userUUID,
+		StartDate: timestamptz(startDate),
+		EndDate:   timestamptz(endDate),
+	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err == nil {
+		biggestSpend = &pb.SpendInsight{
+			Merchant:    biggestSpendRow.Merchant,
+			AmountPaise: biggestSpendRow.AmountPaise,
+			Date:        timestamppb.New(biggestSpendRow.Date.Time),
+		}
+	}
+
+	streak, err := s.DB.GetTransactionDayStreak(ctx, db.GetTransactionDayStreakParams{
+		UserID:    userUUID,
+		StartDate: timestamptz(startDate),
+		EndDate:   timestamptz(endDate),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	var leak *pb.LeakInsight
+	leakRow, err := s.DB.GetLeakCategoryIncrease(ctx, db.GetLeakCategoryIncreaseParams{
+		UserID:            userUUID,
+		CurrentStartDate:  timestamptz(startDate),
+		CurrentEndDate:    timestamptz(endDate),
+		PreviousStartDate: timestamptz(prevStartDate),
+		PreviousEndDate:   timestamptz(prevEndDate),
+	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err == nil && leakRow.IncreasePaise > 0 {
+		leak = &pb.LeakInsight{
+			Category:      leakRow.CategoryName,
+			IncreasePaise: leakRow.IncreasePaise,
+		}
+	}
+
 	return connect.NewResponse(&pb.GetZineResponse{
-		Period:            req.Msg.MonthYear,
-		TotalSpentPaise:   analytics.Spent,
-		TotalIncomePaise: analytics.Saved + analytics.Spent,
-		TransactionCount:  12, // Mock count
-		TopCategories: []*pb.CategoryInsight{
-			{Name: "Food & Dining", Icon: "🍔", TotalPaise: analytics.Spent / 2},
-			{Name: "Transport", Icon: "🚗", TotalPaise: analytics.Spent / 4},
-		},
-		BiggestSpend: &pb.SpendInsight{
-			Merchant:    "Amazon",
-			AmountPaise: analytics.Spent / 3,
-		},
-		Streak:            5,
-		SavedVsPrevPaise: 250000, // +₹2,500
-		Leak: &pb.LeakInsight{
-			Category:      "Subscriptions",
-			IncreasePaise: 49900,
-		},
+		Period:           startDate.Format("2006-01"),
+		TotalSpentPaise:  currentTotals.TotalExpenses,
+		TotalIncomePaise: currentTotals.TotalIncome,
+		TransactionCount: transactionCount,
+		TopCategories:    topCategories,
+		BiggestSpend:     biggestSpend,
+		Streak:           streak,
+		SavedVsPrevPaise: currentTotals.NetBalance - prevTotals.NetBalance,
+		Leak:             leak,
 	}), nil
 }
 
 func (s *InsightsService) GetHealthScore(ctx context.Context, req *connect.Request[pb.GetHealthScoreRequest]) (*connect.Response[pb.GetHealthScoreResponse], error) {
+	userUUID, err := authenticatedUserUUID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	now := time.Now().UTC()
+	startDate := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	totals, err := s.DB.GetSummaryTotals(ctx, db.GetSummaryTotalsParams{
+		UserID:    userUUID,
+		StartDate: timestamptz(startDate),
+		EndDate:   timestamptz(now),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	savingsScore, savingsRate := savingsRateScore(totals.TotalIncome, totals.TotalExpenses)
+	score := savingsScore
+	description := "No income recorded for the current month yet."
+	if totals.TotalIncome > 0 {
+		description = "Savings rate is based on real month-to-date income and expense totals."
+	}
+
+	components := []*pb.HealthScoreComponent{
+		{
+			Name:        "Savings Rate",
+			Score:       score,
+			Weight:      100,
+			Description: description,
+		},
+	}
+
+	factors := []*pb.HealthScoreFactor{}
+	insights := []*pb.HealthScoreInsight{}
+
+	if totals.TotalIncome > 0 {
+		if totals.NetBalance >= 0 {
+			factors = append(factors, &pb.HealthScoreFactor{
+				Type:        "positive",
+				Title:       "Positive monthly cashflow",
+				Description: "Income exceeds expenses based on recorded transactions.",
+				Impact:      math.Round(savingsRate*100) / 100,
+			})
+		} else {
+			factors = append(factors, &pb.HealthScoreFactor{
+				Type:        "negative",
+				Title:       "Negative monthly cashflow",
+				Description: "Expenses exceed income for the current month-to-date window.",
+				Impact:      math.Round(savingsRate*100) / 100,
+			})
+			insights = append(insights, &pb.HealthScoreInsight{
+				Category: "Cashflow",
+				Tip:      "Reduce discretionary spending or log missing income to improve your savings rate.",
+				Priority: "high",
+			})
+		}
+	}
+
 	return connect.NewResponse(&pb.GetHealthScoreResponse{
-		Score: 78,
-		Components: []*pb.HealthScoreComponent{
-			{Name: "Savings Rate", Score: 85, Weight: 30, Description: "You are saving 20% of your income."},
-			{Name: "Debt-to-Income", Score: 92, Weight: 25, Description: "Low debt levels detected."},
-			{Name: "Emergency Fund", Score: 45, Weight: 20, Description: "Only 1.5 months of expenses saved."},
-			{Name: "Investment Mix", Score: 70, Weight: 15, Description: "Good diversification but room to grow."},
-			{Name: "Budget Adherence", Score: 88, Weight: 10, Description: "Staying within limits most months."},
-		},
-		Factors: []*pb.HealthScoreFactor{
-			{Type: "positive", Title: "Consistent Income", Description: "Your income has been steady for 6 months.", Impact: 12.5},
-			{Type: "negative", Title: "Low Savings", Description: "Try to increase your monthly savings rate.", Impact: -5.0},
-		},
-		Insights: []*pb.HealthScoreInsight{
-			{Category: "Savings", Tip: "Set up an automated transfer to your emergency fund.", Priority: "high"},
-		},
+		Score:      score,
+		Components: components,
+		Factors:    factors,
+		Insights:   insights,
 	}), nil
+}
+
+func authenticatedUserUUID(ctx context.Context) (pgtype.UUID, error) {
+	userID, err := UserIDFromContext(ctx)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+
+	var userUUID pgtype.UUID
+	if err := userUUID.Scan(userID); err != nil {
+		return pgtype.UUID{}, err
+	}
+	return userUUID, nil
+}
+
+func monthRange(monthYear string, fallback time.Time) (time.Time, time.Time) {
+	startDate, err := time.Parse("2006-01", monthYear)
+	if err != nil {
+		startDate = time.Date(fallback.Year(), fallback.Month(), 1, 0, 0, 0, 0, time.UTC)
+	} else {
+		startDate = time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+	}
+	return startDate, startDate.AddDate(0, 1, 0)
+}
+
+func timestamptz(value time.Time) pgtype.Timestamptz {
+	return pgtype.Timestamptz{Time: value, Valid: true}
+}
+
+func savingsRateScore(totalIncome, totalExpenses int64) (int32, float64) {
+	if totalIncome <= 0 {
+		return 0, 0
+	}
+
+	savingsRate := (float64(totalIncome-totalExpenses) / float64(totalIncome)) * 100
+	clamped := math.Max(0, math.Min(100, savingsRate))
+	return int32(math.Round(clamped)), savingsRate
 }

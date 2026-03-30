@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X } from "lucide-react";
 import { importClient } from "@/lib/rpc/clients";
 import { track } from "@/lib/analytics";
+import { logError } from "@/lib/logger";
 
 interface ImportResultData {
     batchId: string;
@@ -51,13 +52,16 @@ export function StatementImporter() {
                     parsedCount: res.parsedCount,
                 });
             } catch (err: any) {
-                console.error("Import error:", err);
+                logError("statement_importer.import", err);
                 setError(err.message || "Import failed");
             } finally {
                 setLoading(false);
             }
         };
-        reader.onerror = () => setError("Failed to read file");
+        reader.onerror = () => {
+            setError("Failed to read file");
+            logError("statement_importer.read", new Error("Failed to read file"));
+        };
         reader.readAsArrayBuffer(file);
     };
 

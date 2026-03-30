@@ -37,6 +37,14 @@ export interface CashflowResult {
     forecastConfidence: "high" | "medium" | "low";
 }
 
+function normalizeRecurringType(type: string): "bill" | "income" {
+    const normalized = type.trim().toLowerCase();
+    if (normalized === "income") {
+        return "income";
+    }
+    return "bill";
+}
+
 export function computeCashflow(input: CashflowInput): CashflowResult {
     const days = input.daysToProject || 60;
     const today = new Date();
@@ -46,14 +54,15 @@ export function computeCashflow(input: CashflowInput): CashflowResult {
     const dailyEvents: Map<string, DayProjection["events"]> = new Map();
 
     for (const rule of input.recurringRules) {
+        const normalizedRuleType = normalizeRecurringType(rule.type);
         const occurrences = expandRecurring(rule, today, days);
         for (const occ of occurrences) {
             const key = occ.date;
             const existing = dailyEvents.get(key) || [];
             existing.push({
-                label: rule.merchant || (rule.type === "bill" ? "Bill" : "Income"),
+                label: rule.merchant || (normalizedRuleType === "bill" ? "Bill" : "Income"),
                 amount: rule.amount,
-                type: rule.type,
+                type: normalizedRuleType,
             });
             dailyEvents.set(key, existing);
         }
@@ -127,8 +136,8 @@ export function computeCashflow(input: CashflowInput): CashflowResult {
     );
 
     // Forecast confidence
-    const hasBills = input.recurringRules.some((r) => r.type === "bill");
-    const hasIncome = input.recurringRules.some((r) => r.type === "income");
+    const hasBills = input.recurringRules.some((r) => normalizeRecurringType(r.type) === "bill");
+    const hasIncome = input.recurringRules.some((r) => normalizeRecurringType(r.type) === "income");
     let forecastConfidence: "high" | "medium" | "low" = "low";
     if (hasBills && hasIncome) forecastConfidence = "high";
     else if (hasBills || hasIncome) forecastConfidence = "medium";

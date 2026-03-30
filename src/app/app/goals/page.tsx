@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Target, Plus, Flame, Trophy, Loader2, Calendar,
-    TrendingUp, X, Sparkles
+    X, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
-import { goalClient } from "@/lib/rpc/clients";
-import { Goal } from "@/gen/vasoli/v1/goal_pb";
-import { Timestamp } from "@bufbuild/protobuf";
+import { useCreateGoal, useGoals } from "@/lib/hooks";
 
 interface GoalData {
     id: string;
@@ -30,10 +28,9 @@ const ICONS = ["🎯", "🏠", "✈️", "🚗", "💍", "📱", "🎓", "💰",
 const COLORS = ["#E8B931", "#1A936F", "#6C63FF", "#E76F51", "#264653", "#2A9D8F", "#E9C46A", "#F4A261"];
 
 export default function GoalsPage() {
-    const [goals, setGoals] = useState<GoalData[]>([]);
-    const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
-    const [creating, setCreating] = useState(false);
+    const goalsQuery = useGoals();
+    const createGoal = useCreateGoal();
 
     // Form state
     const [form, setForm] = useState({
@@ -45,72 +42,49 @@ export default function GoalsPage() {
         color: COLORS[0],
     });
 
-    useEffect(() => {
-        goalClient.listGoals({})
-            .then((res) => {
-                setGoals(res.goals.map(g => ({
-                    id: g.id,
-                    name: g.name,
-                    description: g.description || null,
-                    targetAmount: Number(g.targetAmountPaise) / 100,
-                    currentAmount: Number(g.currentAmountPaise) / 100,
-                    cadence: g.cadence || null,
-                    dueDate: g.dueDate?.toDate().toISOString() || null,
-                    active: g.active,
-                    color: g.color || null,
-                    icon: g.icon || null,
-                    createdAt: g.createdAt?.toDate().toISOString() || new Date().toISOString(),
-                })));
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, []);
+    const goals = useMemo<GoalData[]>(
+        () =>
+            (goalsQuery.data || []).map((goal) => ({
+                id: goal.id,
+                name: goal.name,
+                description: goal.description || null,
+                targetAmount: goal.targetAmount,
+                currentAmount: goal.currentAmount,
+                cadence: null,
+                dueDate: goal.deadline || null,
+                active: goal.status === "ACTIVE",
+                color: goal.color || null,
+                icon: goal.icon || null,
+                createdAt: goal.createdAt || "",
+            })),
+        [goalsQuery.data]
+    );
 
     const handleCreate = async () => {
         if (!form.name || !form.targetAmount) {
             toast.error("Name and target amount are required!");
             return;
         }
-        setCreating(true);
         try {
-            const dueDate = form.dueDate ? Timestamp.fromDate(new Date(form.dueDate)) : undefined;
-            const res = await goalClient.createGoal({
+            await createGoal.mutateAsync({
                 name: form.name,
                 description: form.description || undefined,
-                targetAmountPaise: BigInt(Math.round(parseFloat(form.targetAmount) * 100)),
-                dueDate: dueDate,
+                targetAmount: parseFloat(form.targetAmount),
+                deadline: form.dueDate || undefined,
                 icon: form.icon,
                 color: form.color,
             });
-
-            const newGoal: GoalData = {
-                id: res.goal!.id,
-                name: res.goal!.name,
-                description: res.goal!.description || null,
-                targetAmount: Number(res.goal!.targetAmountPaise) / 100,
-                currentAmount: Number(res.goal!.currentAmountPaise) / 100,
-                cadence: res.goal!.cadence || null,
-                dueDate: res.goal!.dueDate?.toDate().toISOString() || null,
-                active: res.goal!.active,
-                color: res.goal!.color || null,
-                icon: res.goal!.icon || null,
-                createdAt: res.goal!.createdAt?.toDate().toISOString() || new Date().toISOString(),
-            };
-            setGoals((prev) => [newGoal, ...prev]);
             setForm({ name: "", description: "", targetAmount: "", dueDate: "", icon: "🎯", color: COLORS[0] });
             setShowCreate(false);
-            toast.success(`Goal "${newGoal.name}" created!`);
-        } catch (err) {
-            console.error("Create goal error:", err);
-            toast.error("Failed to create goal");
-        } finally {
-            setCreating(false);
+        } catch {
+            // Mutation toasts already surface the failure.
         }
     };
 
     const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
     const activeGoals = goals.filter((g) => g.active);
     const completedGoals = goals.filter((g) => !g.active);
+    const loading = goalsQuery.isLoading;
 
     const totalTarget = activeGoals.reduce((s, g) => s + g.targetAmount, 0);
     const totalSaved = activeGoals.reduce((s, g) => s + g.currentAmount, 0);
@@ -164,7 +138,9 @@ export default function GoalsPage() {
             )}
 
             {/* Goals Grid */}
-            {loading ? (
+            {goalsQuery.isError ? (
+                <div className="text-center py-12 text-danger">Failed to load goals.</div>
+            ) : loading ? (
                 <div className="text-center py-12 text-taupe">Loading goals...</div>
             ) : goals.length === 0 ? (
                 <motion.div
@@ -396,13 +372,13 @@ export default function GoalsPage() {
 
                                 <motion.button
                                     onClick={handleCreate}
-                                    disabled={creating || !form.name || !form.targetAmount}
+                                    disabled={createGoal.isPending || !form.name || !form.targetAmount}
                                     whileHover={{ scale: 1.01 }}
                                     whileTap={{ scale: 0.98 }}
                                     className="w-full border-brutal-thick rounded-neo bg-cta text-ink font-semibold py-3 flex items-center justify-center gap-2 shadow-brutal-sm disabled:opacity-40 transition-all"
                                 >
-                                    {creating ? <Loader2 size={16} className="animate-spin" /> : <Target size={16} />}
-                                    {creating ? "Creating..." : "Create Goal"}
+                                    {createGoal.isPending ? <Loader2 size={16} className="animate-spin" /> : <Target size={16} />}
+                                    {createGoal.isPending ? "Creating..." : "Create Goal"}
                                 </motion.button>
                             </div>
                         </motion.div>

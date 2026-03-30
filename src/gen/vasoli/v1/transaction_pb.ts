@@ -425,6 +425,16 @@ export class ListTransactionsRequest extends Message<ListTransactionsRequest> {
    */
   categoryId?: string;
 
+  /**
+   * @generated from field: optional google.protobuf.Timestamp start_date = 5;
+   */
+  startDate?: Timestamp;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp end_date = 6;
+   */
+  endDate?: Timestamp;
+
   constructor(data?: PartialMessage<ListTransactionsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -437,6 +447,8 @@ export class ListTransactionsRequest extends Message<ListTransactionsRequest> {
     { no: 2, name: "page_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "category_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "start_date", kind: "message", T: Timestamp, opt: true },
+    { no: 6, name: "end_date", kind: "message", T: Timestamp, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListTransactionsRequest {

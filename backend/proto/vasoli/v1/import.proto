@@ -18,4 +18,12 @@ message ImportStatementResponse {
   int32 parsed_count = 2;
   int32 created_count = 3;
   int32 matched_count = 4;
+  int32 failed_count = 5;
+  repeated FailedImportRow failed_rows = 6;
+}
+
+message FailedImportRow {
+  int32 row_number = 1;
+  string raw = 2;
+  string reason = 3;
 }

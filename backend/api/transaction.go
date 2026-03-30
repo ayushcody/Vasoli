@@ -2,9 +2,15 @@ package api
 
 import (
 	"context"
-	"log"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -13,200 +19,494 @@ import (
 	"vasoli-backend/internal/merchantnorm"
 )
 
+var validTransactionTypes = map[string]struct{}{
+	"EXPENSE":    {},
+	"INCOME":     {},
+	"INVESTMENT": {},
+	"TRANSFER":   {},
+}
+
+type transactionCreateInput struct {
+	AmountPaise   int64
+	Description   string
+	Date          time.Time
+	Type          string
+	CategoryID    *string
+	ReceiptURL    *string
+	PaymentMethod *string
+	UpiID         *string
+	UpiRef        *string
+	BankRRN       *string
+	MerchantRaw   string
+	MerchantNorm  string
+	Status        string
+	Provenance    string
+	Tags          []string
+	ImportBatchID pgtype.UUID
+}
+
 type TransactionService struct {
 	DB *db.Queries
 }
 
 func (s *TransactionService) CreateTransaction(ctx context.Context, req *connect.Request[pb.CreateTransactionRequest]) (*connect.Response[pb.CreateTransactionResponse], error) {
-	userID, err := UserIDFromContext(ctx)
+	userUUID, err := authenticatedUserUUID(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
-	var userUUID pgtype.UUID
-	if err := userUUID.Scan(userID); err != nil {
+	if req.Msg.Date == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("date is required"))
+	}
+
+	tx, err := createTransactionRecord(ctx, s.DB, userUUID, transactionCreateInput{
+		AmountPaise:   req.Msg.AmountPaise,
+		Description:   req.Msg.Description,
+		Date:          req.Msg.Date.AsTime(),
+		Type:          req.Msg.Type,
+		CategoryID:    req.Msg.CategoryId,
+		ReceiptURL:    req.Msg.ReceiptUrl,
+		PaymentMethod: req.Msg.PaymentMethod,
+		UpiID:         req.Msg.UpiId,
+		UpiRef:        req.Msg.UpiRef,
+		BankRRN:       req.Msg.BankRrn,
+		MerchantRaw:   req.Msg.MerchantRaw,
+		MerchantNorm:  req.Msg.MerchantNorm,
+		Status:        req.Msg.Status,
+		Provenance:    req.Msg.Provenance,
+		Tags:          req.Msg.Tags,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&pb.CreateTransactionResponse{
+		Transaction: mapTransaction(tx),
+	}), nil
+}
+
+func (s *TransactionService) GetTransaction(ctx context.Context, req *connect.Request[pb.GetTransactionRequest]) (*connect.Response[pb.GetTransactionResponse], error) {
+	userUUID, err := authenticatedUserUUID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	transactionUUID, err := parseUUID(req.Msg.Id, "transaction id")
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.DB.GetTransaction(ctx, db.GetTransactionParams{
+		ID:     transactionUUID,
+		UserID: userUUID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("transaction not found"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&pb.GetTransactionResponse{
+		Transaction: mapTransaction(tx),
+	}), nil
+}
+
+func (s *TransactionService) ListTransactions(ctx context.Context, req *connect.Request[pb.ListTransactionsRequest]) (*connect.Response[pb.ListTransactionsResponse], error) {
+	userUUID, err := authenticatedUserUUID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	pageSize := req.Msg.PageSize
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
+	cursorDate, cursorID, err := decodeTransactionPageToken(req.Msg.PageToken)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	// Calculate Merchant Norm
-	raw := req.Msg.MerchantRaw
-	if raw == "" {
-		raw = req.Msg.Description
+	var categoryID pgtype.UUID
+	if req.Msg.CategoryId != nil {
+		categoryID, err = parseRawUUID(req.Msg.GetCategoryId())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("category_id must be a valid UUID"))
+		}
 	}
-	norm := merchantnorm.NormalizeMerchant(raw, req.Msg.Description)
 
-	// Check if alias exists
-	alias, err := s.DB.ListMerchantAliases(ctx, userUUID)
+	if req.Msg.Type != nil {
+		if err := validateTransactionType(req.Msg.GetType()); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	}
+
+	if req.Msg.StartDate != nil && req.Msg.EndDate != nil && !req.Msg.StartDate.AsTime().Before(req.Msg.EndDate.AsTime()) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("start_date must be before end_date"))
+	}
+
+	rows, err := s.DB.ListTransactions(ctx, db.ListTransactionsParams{
+		UserID:     userUUID,
+		Type:       optionalText(req.Msg.Type),
+		CategoryID: categoryID,
+		StartDate:  optionalTimestampValue(req.Msg.StartDate),
+		EndDate:    optionalTimestampValue(req.Msg.EndDate),
+		CursorDate: optionalTimeValue(cursorDate),
+		CursorID:   cursorID,
+		LimitCount: pageSize + 1,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	nextPageToken := ""
+	if len(rows) > int(pageSize) {
+		last := rows[pageSize-1]
+		nextPageToken = encodeTransactionPageToken(last.Date.Time, UUIDToString(last.ID))
+		rows = rows[:pageSize]
+	}
+
+	transactions := make([]*pb.Transaction, 0, len(rows))
+	for _, row := range rows {
+		transactions = append(transactions, mapTransaction(row))
+	}
+
+	return connect.NewResponse(&pb.ListTransactionsResponse{
+		Transactions:  transactions,
+		NextPageToken: nextPageToken,
+	}), nil
+}
+
+func (s *TransactionService) UpdateTransaction(ctx context.Context, req *connect.Request[pb.UpdateTransactionRequest]) (*connect.Response[pb.UpdateTransactionResponse], error) {
+	userUUID, err := authenticatedUserUUID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	transactionUUID, err := parseUUID(req.Msg.Id, "transaction id")
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Msg.AmountPaise != nil && req.Msg.GetAmountPaise() <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("amount must be greater than zero"))
+	}
+	if req.Msg.Type != nil {
+		if err := validateTransactionType(req.Msg.GetType()); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	}
+	if req.Msg.Date != nil {
+		if err := validateTransactionDate(req.Msg.Date.AsTime()); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	}
+
+	var categoryID pgtype.UUID
+	if req.Msg.CategoryId != nil {
+		categoryID, err = parseRawUUID(req.Msg.GetCategoryId())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("category_id must be a valid UUID"))
+		}
+	}
+
+	tx, err := s.DB.UpdateTransaction(ctx, db.UpdateTransactionParams{
+		ID:            transactionUUID,
+		UserID:        userUUID,
+		AmountPaise:   optionalInt8(req.Msg.AmountPaise),
+		Description:   optionalText(req.Msg.Description),
+		MerchantRaw:   optionalText(req.Msg.MerchantRaw),
+		MerchantNorm:  optionalText(req.Msg.MerchantNorm),
+		Date:          optionalTimestampValue(req.Msg.Date),
+		Type:          optionalText(req.Msg.Type),
+		Status:        optionalText(req.Msg.Status),
+		Provenance:    optionalText(req.Msg.Provenance),
+		CategoryID:    categoryID,
+		PaymentMethod: optionalText(req.Msg.PaymentMethod),
+		UpiID:         optionalText(req.Msg.UpiId),
+		UpiRef:        optionalText(req.Msg.UpiRef),
+		BankRrn:       optionalText(req.Msg.BankRrn),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("transaction not found"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&pb.UpdateTransactionResponse{
+		Transaction: mapTransaction(tx),
+	}), nil
+}
+
+func (s *TransactionService) DeleteTransaction(ctx context.Context, req *connect.Request[pb.DeleteTransactionRequest]) (*connect.Response[pb.DeleteTransactionResponse], error) {
+	userUUID, err := authenticatedUserUUID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	transactionUUID, err := parseUUID(req.Msg.Id, "transaction id")
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.DB.GetTransaction(ctx, db.GetTransactionParams{
+		ID:     transactionUUID,
+		UserID: userUUID,
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("transaction not found"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if err := s.DB.DeleteTransaction(ctx, db.DeleteTransactionParams{
+		ID:     transactionUUID,
+		UserID: userUUID,
+	}); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&pb.DeleteTransactionResponse{}), nil
+}
+
+func createTransactionRecord(ctx context.Context, queries *db.Queries, userUUID pgtype.UUID, input transactionCreateInput) (db.Transaction, error) {
+	if input.Description == "" {
+		return db.Transaction{}, connect.NewError(connect.CodeInvalidArgument, errors.New("description is required"))
+	}
+	if input.AmountPaise <= 0 {
+		return db.Transaction{}, connect.NewError(connect.CodeInvalidArgument, errors.New("amount must be greater than zero"))
+	}
+	if err := validateTransactionType(input.Type); err != nil {
+		return db.Transaction{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := validateTransactionDate(input.Date); err != nil {
+		return db.Transaction{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	categoryID := pgtype.UUID{}
+	if input.CategoryID != nil && *input.CategoryID != "" {
+		parsed, err := parseRawUUID(*input.CategoryID)
+		if err != nil {
+			return db.Transaction{}, connect.NewError(connect.CodeInvalidArgument, errors.New("category_id must be a valid UUID"))
+		}
+		categoryID = parsed
+	}
+
+	rawMerchant := strings.TrimSpace(input.MerchantRaw)
+	if rawMerchant == "" {
+		rawMerchant = input.Description
+	}
+
+	merchantNorm := strings.TrimSpace(input.MerchantNorm)
+	if merchantNorm == "" {
+		merchantNorm = merchantnorm.NormalizeMerchant(rawMerchant, input.Description)
+	}
+
+	aliases, err := queries.ListMerchantAliases(ctx, userUUID)
 	if err == nil {
-		for _, a := range alias {
-			if a.RawPattern == raw {
-				norm = a.MerchantNorm
+		for _, alias := range aliases {
+			if alias.RawPattern == rawMerchant {
+				merchantNorm = alias.MerchantNorm
 				break
 			}
 		}
 	}
 
-	// Try auto-categorization if category was not provided
-	catID := req.Msg.CategoryId
-	var catUUID pgtype.UUID
-	if catID != nil && *catID != "" {
-		_ = catUUID.Scan(*catID)
-	} else {
-		// Auto-categorize
-		rule, err := s.DB.GetCategoryRule(ctx, db.GetCategoryRuleParams{
+	if !categoryID.Valid {
+		rule, err := queries.GetCategoryRule(ctx, db.GetCategoryRuleParams{
 			UserID:       userUUID,
-			MerchantNorm: norm,
+			MerchantNorm: merchantNorm,
 		})
 		if err == nil {
-			catUUID = rule.CategoryID
+			categoryID = rule.CategoryID
 		}
 	}
 
-	params := db.CreateTransactionParams{
+	status := input.Status
+	if status == "" {
+		status = "POSTED"
+	}
+
+	provenance := input.Provenance
+	if provenance == "" {
+		provenance = "MANUAL"
+	}
+
+	tx, err := queries.CreateTransaction(ctx, db.CreateTransactionParams{
 		UserID:        userUUID,
-		AmountPaise:   req.Msg.AmountPaise,
-		Description:   req.Msg.Description,
-		MerchantRaw:   raw,
-		MerchantNorm:  norm,
-		Date:          pgtype.Timestamptz{Time: req.Msg.Date.AsTime(), Valid: true},
-		Type:          req.Msg.Type,
-		Status:        req.Msg.Status,
-		Provenance:    req.Msg.Provenance,
-		CategoryID:    catUUID,
-		Tags:          req.Msg.Tags,
-		PaymentMethod: pgtype.Text{String: req.Msg.GetPaymentMethod(), Valid: req.Msg.PaymentMethod != nil},
-		UpiID:         pgtype.Text{String: req.Msg.GetUpiId(), Valid: req.Msg.UpiId != nil},
-		UpiRef:        pgtype.Text{String: req.Msg.GetUpiRef(), Valid: req.Msg.UpiRef != nil},
-		BankRrn:       pgtype.Text{String: req.Msg.GetBankRrn(), Valid: req.Msg.BankRrn != nil},
-	}
-
-	if params.Status == "" {
-		params.Status = "POSTED" // Default
-	}
-	if params.Provenance == "" {
-		params.Provenance = "MANUAL" // Default
-	}
-
-	tx, err := s.DB.CreateTransaction(ctx, params)
-	if err != nil {
-		log.Printf("CreateTransaction DB err: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	var idStr = UUIDToString(tx.ID)
-	var catStr = UUIDToString(tx.CategoryID)
-
-	var catId *string
-	if catStr != "" {
-		catId = &catStr
-	}
-
-	return connect.NewResponse(&pb.CreateTransactionResponse{
-		Transaction: &pb.Transaction{
-			Id:            idStr,
-			AmountPaise:   tx.AmountPaise,
-			Description:   tx.Description,
-			MerchantRaw:   tx.MerchantRaw,
-			MerchantNorm:  tx.MerchantNorm,
-			Date:          timestamppb.New(tx.Date.Time),
-			Type:          tx.Type,
-			Status:        tx.Status,
-			Provenance:    tx.Provenance,
-			CategoryId:    catId,
-			PaymentMethod: tx.PaymentMethod.String,
-			UpiId:         &tx.UpiID.String,
-			UpiRef:        &tx.UpiRef.String,
-			BankRrn:       &tx.BankRrn.String,
-		},
-	}), nil
-}
-
-func (s *TransactionService) GetTransaction(ctx context.Context, req *connect.Request[pb.GetTransactionRequest]) (*connect.Response[pb.GetTransactionResponse], error) {
-	// Not fully implemented for MVP, stub
-	return connect.NewResponse(&pb.GetTransactionResponse{}), nil
-}
-
-func (s *TransactionService) ListTransactions(ctx context.Context, req *connect.Request[pb.ListTransactionsRequest]) (*connect.Response[pb.ListTransactionsResponse], error) {
-	userID, err := UserIDFromContext(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
-
-	var userUUID pgtype.UUID
-	if err := userUUID.Scan(userID); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
-	limit := int32(50)
-	if req.Msg.PageSize > 0 {
-		limit = req.Msg.PageSize
-	}
-
-	dbTxns, err := s.DB.ListTransactions(ctx, db.ListTransactionsParams{
-		UserID: userUUID,
-		Limit:  limit,
-		Offset: 0,
+		AmountPaise:   input.AmountPaise,
+		Description:   input.Description,
+		MerchantRaw:   rawMerchant,
+		MerchantNorm:  merchantNorm,
+		Date:          pgtype.Timestamptz{Time: input.Date.UTC(), Valid: true},
+		Type:          input.Type,
+		Status:        status,
+		Provenance:    provenance,
+		CategoryID:    categoryID,
+		Tags:          input.Tags,
+		PaymentMethod: optionalStringValue(input.PaymentMethod),
+		UpiID:         optionalStringValue(input.UpiID),
+		UpiRef:        optionalStringValue(input.UpiRef),
+		BankRrn:       optionalStringValue(input.BankRRN),
+		ReceiptUrl:    optionalStringValue(input.ReceiptURL),
+		ImportBatchID: input.ImportBatchID,
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return db.Transaction{}, connect.NewError(connect.CodeInternal, err)
 	}
 
-	var txns []*pb.Transaction
-	for _, tx := range dbTxns {
-		idStr := UUIDToString(tx.ID)
-		catStr := UUIDToString(tx.CategoryID)
-
-		var catId *string
-		if catStr != "" {
-			catId = &catStr
-		}
-
-		txns = append(txns, &pb.Transaction{
-			Id:            idStr,
-			AmountPaise:   tx.AmountPaise,
-			Description:   tx.Description,
-			MerchantRaw:   tx.MerchantRaw,
-			MerchantNorm:  tx.MerchantNorm,
-			Date:          timestamppb.New(tx.Date.Time),
-			Type:          tx.Type,
-			Status:        tx.Status,
-			Provenance:    tx.Provenance,
-			CategoryId:    catId,
-			PaymentMethod: tx.PaymentMethod.String,
-			UpiId:         &tx.UpiID.String,
-			UpiRef:        &tx.UpiRef.String,
-			BankRrn:       &tx.BankRrn.String,
-		})
-	}
-
-	return connect.NewResponse(&pb.ListTransactionsResponse{
-		Transactions: txns,
-	}), nil
+	return tx, nil
 }
 
-func (s *TransactionService) UpdateTransaction(ctx context.Context, req *connect.Request[pb.UpdateTransactionRequest]) (*connect.Response[pb.UpdateTransactionResponse], error) {
-	// Add similar checks as Create, omited for brevity in this MVP phase
-	return connect.NewResponse(&pb.UpdateTransactionResponse{}), nil
+func mapTransaction(tx db.Transaction) *pb.Transaction {
+	transaction := &pb.Transaction{
+		Id:            UUIDToString(tx.ID),
+		AmountPaise:   tx.AmountPaise,
+		Description:   tx.Description,
+		Type:          tx.Type,
+		PaymentMethod: tx.PaymentMethod.String,
+		IsRecurring:   tx.IsRecurring.Bool,
+		UserId:        UUIDToString(tx.UserID),
+		MerchantRaw:   tx.MerchantRaw,
+		MerchantNorm:  tx.MerchantNorm,
+		Status:        tx.Status,
+		Provenance:    tx.Provenance,
+		Tags:          tx.Tags,
+	}
+
+	if tx.Date.Valid {
+		transaction.Date = timestamppb.New(tx.Date.Time)
+	}
+	if tx.CreatedAt.Valid {
+		transaction.CreatedAt = timestamppb.New(tx.CreatedAt.Time)
+	}
+	if tx.UpdatedAt.Valid {
+		transaction.UpdatedAt = timestamppb.New(tx.UpdatedAt.Time)
+	}
+
+	if categoryID := UUIDToString(tx.CategoryID); categoryID != "" {
+		transaction.CategoryId = &categoryID
+	}
+	if receiptURL := tx.ReceiptUrl.String; tx.ReceiptUrl.Valid {
+		transaction.ReceiptUrl = &receiptURL
+	}
+	if upiID := tx.UpiID.String; tx.UpiID.Valid {
+		transaction.UpiId = &upiID
+	}
+	if upiRef := tx.UpiRef.String; tx.UpiRef.Valid {
+		transaction.UpiRef = &upiRef
+	}
+	if bankRRN := tx.BankRrn.String; tx.BankRrn.Valid {
+		transaction.BankRrn = &bankRRN
+	}
+	if recurringID := UUIDToString(tx.RecurringID); recurringID != "" {
+		transaction.RecurringId = &recurringID
+	}
+
+	return transaction
 }
 
-func (s *TransactionService) DeleteTransaction(ctx context.Context, req *connect.Request[pb.DeleteTransactionRequest]) (*connect.Response[pb.DeleteTransactionResponse], error) {
-	userID, err := UserIDFromContext(ctx)
+func validateTransactionType(transactionType string) error {
+	if _, ok := validTransactionTypes[strings.ToUpper(transactionType)]; !ok {
+		return fmt.Errorf("unsupported transaction type %q", transactionType)
+	}
+	return nil
+}
+
+func validateTransactionDate(transactionDate time.Time) error {
+	maxFuture := time.Now().UTC().Add(24 * time.Hour)
+	if transactionDate.After(maxFuture) {
+		return errors.New("date cannot be more than one day in the future")
+	}
+	return nil
+}
+
+func parseUUID(value string, fieldName string) (pgtype.UUID, error) {
+	parsed, err := parseRawUUID(value)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return pgtype.UUID{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s must be a valid UUID", fieldName))
+	}
+	return parsed, nil
+}
+
+func parseRawUUID(value string) (pgtype.UUID, error) {
+	var parsed pgtype.UUID
+	if err := parsed.Scan(value); err != nil {
+		return pgtype.UUID{}, err
+	}
+	return parsed, nil
+}
+
+func optionalText(value *string) pgtype.Text {
+	if value == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: *value, Valid: true}
+}
+
+func optionalStringValue(value *string) pgtype.Text {
+	if value == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: *value, Valid: true}
+}
+
+func optionalInt8(value *int64) pgtype.Int8 {
+	if value == nil {
+		return pgtype.Int8{}
+	}
+	return pgtype.Int8{Int64: *value, Valid: true}
+}
+
+func optionalTimestampValue(value *timestamppb.Timestamp) pgtype.Timestamptz {
+	if value == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: value.AsTime(), Valid: true}
+}
+
+func optionalTimeValue(value *time.Time) pgtype.Timestamptz {
+	if value == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: value.UTC(), Valid: true}
+}
+
+func encodeTransactionPageToken(date time.Time, id string) string {
+	payload := fmt.Sprintf("%d|%s", date.UTC().UnixNano(), id)
+	return base64.StdEncoding.EncodeToString([]byte(payload))
+}
+
+func decodeTransactionPageToken(token string) (*time.Time, pgtype.UUID, error) {
+	if token == "" {
+		return nil, pgtype.UUID{}, nil
 	}
 
-	var userUUID pgtype.UUID
-	_ = userUUID.Scan(userID)
-	var txUUID pgtype.UUID
-	_ = txUUID.Scan(req.Msg.Id)
-
-	err = s.DB.DeleteTransaction(ctx, db.DeleteTransactionParams{
-		ID:     txUUID,
-		UserID: userUUID,
-	})
+	decoded, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, pgtype.UUID{}, errors.New("page_token is invalid")
 	}
 
-	return connect.NewResponse(&pb.DeleteTransactionResponse{}), nil
+	parts := strings.Split(string(decoded), "|")
+	if len(parts) != 2 {
+		return nil, pgtype.UUID{}, errors.New("page_token is invalid")
+	}
+
+	unixNano, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return nil, pgtype.UUID{}, errors.New("page_token is invalid")
+	}
+
+	cursorID, err := parseRawUUID(parts[1])
+	if err != nil {
+		return nil, pgtype.UUID{}, errors.New("page_token is invalid")
+	}
+
+	cursorDate := time.Unix(0, unixNano).UTC()
+	return &cursorDate, cursorID, nil
 }

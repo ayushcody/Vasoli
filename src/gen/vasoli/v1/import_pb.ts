@@ -81,6 +81,16 @@ export class ImportStatementResponse extends Message<ImportStatementResponse> {
    */
   matchedCount = 0;
 
+  /**
+   * @generated from field: int32 failed_count = 5;
+   */
+  failedCount = 0;
+
+  /**
+   * @generated from field: repeated vasoli.v1.FailedImportRow failed_rows = 6;
+   */
+  failedRows: FailedImportRow[] = [];
+
   constructor(data?: PartialMessage<ImportStatementResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -93,6 +103,8 @@ export class ImportStatementResponse extends Message<ImportStatementResponse> {
     { no: 2, name: "parsed_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 3, name: "created_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 4, name: "matched_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 5, name: "failed_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "failed_rows", kind: "message", T: FailedImportRow, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ImportStatementResponse {
@@ -109,6 +121,55 @@ export class ImportStatementResponse extends Message<ImportStatementResponse> {
 
   static equals(a: ImportStatementResponse | PlainMessage<ImportStatementResponse> | undefined, b: ImportStatementResponse | PlainMessage<ImportStatementResponse> | undefined): boolean {
     return proto3.util.equals(ImportStatementResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.FailedImportRow
+ */
+export class FailedImportRow extends Message<FailedImportRow> {
+  /**
+   * @generated from field: int32 row_number = 1;
+   */
+  rowNumber = 0;
+
+  /**
+   * @generated from field: string raw = 2;
+   */
+  raw = "";
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<FailedImportRow>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.FailedImportRow";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "row_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "raw", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FailedImportRow {
+    return new FailedImportRow().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FailedImportRow {
+    return new FailedImportRow().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FailedImportRow {
+    return new FailedImportRow().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FailedImportRow | PlainMessage<FailedImportRow> | undefined, b: FailedImportRow | PlainMessage<FailedImportRow> | undefined): boolean {
+    return proto3.util.equals(FailedImportRow, a, b);
   }
 }
 

@@ -8,6 +8,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Budget struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Name        string             `json:"name"`
+	AmountPaise int64              `json:"amount_paise"`
+	Period      string             `json:"period"`
+	StartDate   pgtype.Timestamptz `json:"start_date"`
+	EndDate     pgtype.Timestamptz `json:"end_date"`
+	Categories  string             `json:"categories"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Category struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    pgtype.UUID        `json:"user_id"`
@@ -62,6 +75,7 @@ type ImportBatch struct {
 	ParsedCount  int32              `json:"parsed_count"`
 	CreatedCount int32              `json:"created_count"`
 	MatchedCount int32              `json:"matched_count"`
+	FailedCount  int32              `json:"failed_count"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -92,12 +106,15 @@ type RecurringRule struct {
 	UserID       pgtype.UUID        `json:"user_id"`
 	MerchantNorm string             `json:"merchant_norm"`
 	AmountPaise  int64              `json:"amount_paise"`
+	Type         string             `json:"type"`
 	Cadence      string             `json:"cadence"`
 	NextDueDate  pgtype.Timestamptz `json:"next_due_date"`
 	Active       bool               `json:"active"`
+	CategoryID   pgtype.UUID        `json:"category_id"`
 	SnoozedUntil pgtype.Timestamptz `json:"snoozed_until"`
 	CancelledAt  pgtype.Timestamptz `json:"cancelled_at"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Transaction struct {
@@ -129,5 +146,8 @@ type Transaction struct {
 type User struct {
 	ID        pgtype.UUID        `json:"id"`
 	Email     string             `json:"email"`
+	Name      string             `json:"name"`
+	AvatarUrl string             `json:"avatar_url"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }

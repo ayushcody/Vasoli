@@ -13,7 +13,8 @@ import (
 type contextKey string
 
 const (
-	UserIDKey contextKey = "user_id"
+	UserIDKey    contextKey = "user_id"
+	UserEmailKey contextKey = "user_email"
 )
 
 // AuthInterceptor checks for a Bearer token in the headers and validates it.
@@ -54,6 +55,9 @@ func NewAuthInterceptor(jwtSecret string) connect.UnaryInterceptorFunc {
 
 				// Add userID to context
 				ctx = context.WithValue(ctx, UserIDKey, userID)
+				if email, ok := claims["email"].(string); ok {
+					ctx = context.WithValue(ctx, UserEmailKey, email)
+				}
 			} else {
 				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid token claims"))
 			}
@@ -72,3 +76,7 @@ func UserIDFromContext(ctx context.Context) (string, error) {
 	return userID, nil
 }
 
+func UserEmailFromContext(ctx context.Context) string {
+	email, _ := ctx.Value(UserEmailKey).(string)
+	return email
+}

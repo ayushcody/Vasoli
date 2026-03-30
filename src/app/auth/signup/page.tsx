@@ -7,7 +7,10 @@ import { Loader2, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Button } from "@/components/ui/button";
+import { NeoBadge } from "@/components/ui/neo-badge";
+import { NeoButton } from "@/components/ui/neo-button";
+import { NeoInput } from "@/components/ui/neo-input";
+import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/components/ui/panel";
 import {
   Form,
   FormControl,
@@ -16,7 +19,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/browser";
 
 const signUpSchema = z.object({
@@ -91,21 +93,25 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-paper-1 px-4 py-12">
-      <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-[0.9fr_1.1fr]">
-        <div className="neo-surface hidden p-8 md:block">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Create your workspace</p>
-          <h1 className="mt-3 text-4xl font-black">Build a cleaner home for transactions, receipts, and obligations.</h1>
-          <p className="mt-4 text-sm leading-7 text-taupe">
-            Sign up uses standard form validation, email OTP verification, and the same protected routing rules as the rest of the product.
-          </p>
-        </div>
-        <div className="neo-surface-lg p-8">
+      <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
+        <Panel className="w-full rounded-neo-lg border-brutal-thick bg-paper-2 shadow-brutal">
+          <PanelHeader className="border-b-0 pb-2">
+            <div className="mb-4 grid size-16 place-items-center rounded-neo-md border-brutal-thick bg-mustard font-serif text-3xl font-black text-ink">
+              V
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">
+              {verificationStep ? "Verify email" : "Sign up"}
+            </p>
+            <PanelTitle>{verificationStep ? `Enter the code sent to ${currentEmail}` : "Create your account"}</PanelTitle>
+            <p className="text-sm leading-7 text-taupe">
+              {verificationStep
+                ? "Finish verification to activate the workspace."
+                : "Create a Vasoli account with email verification before entering the protected app."}
+            </p>
+          </PanelHeader>
+          <PanelContent>
           {!verificationStep ? (
             <>
-              <div className="mb-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Sign up</p>
-                <h2 className="mt-3 text-3xl font-black">Create your account</h2>
-              </div>
               <Form {...signUpForm}>
                 <form className="space-y-5" onSubmit={signUpForm.handleSubmit(handleSignUp)}>
                   <FormField
@@ -115,7 +121,7 @@ export default function SignUpPage() {
                       <FormItem>
                         <FormLabel>Name</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Ayush" />
+                          <NeoInput {...field} placeholder="Ayush" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -128,7 +134,7 @@ export default function SignUpPage() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" placeholder="you@example.com" />
+                          <NeoInput {...field} type="email" placeholder="you@example.com" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -141,34 +147,30 @@ export default function SignUpPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input {...field} type="password" placeholder="At least 6 characters" />
+                          <NeoInput {...field} type="password" placeholder="At least 6 characters" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   {signUpForm.formState.errors.root ? (
-                    <div className="rounded-neo border-brutal bg-red-50 px-4 py-3 text-sm text-danger">
+                    <NeoBadge variant="danger" className="w-full justify-center px-4 py-3 text-sm normal-case tracking-normal">
                       {signUpForm.formState.errors.root.message}
-                    </div>
+                    </NeoBadge>
                   ) : null}
-                  <Button type="submit" size="lg" className="w-full" disabled={signUpForm.formState.isSubmitting}>
+                  <NeoButton type="submit" size="lg" className="w-full" disabled={signUpForm.formState.isSubmitting}>
                     {signUpForm.formState.isSubmitting ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
                       <UserPlus className="size-4" />
                     )}
                     {signUpForm.formState.isSubmitting ? "Sending code..." : "Create account"}
-                  </Button>
+                  </NeoButton>
                 </form>
               </Form>
             </>
           ) : (
             <>
-              <div className="mb-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Verify email</p>
-                <h2 className="mt-3 text-3xl font-black">Enter the code we sent to {currentEmail}</h2>
-              </div>
               <Form {...otpForm}>
                 <form className="space-y-5" onSubmit={otpForm.handleSubmit(handleVerify)}>
                   <FormField
@@ -191,22 +193,22 @@ export default function SignUpPage() {
                     )}
                   />
                   {otpForm.formState.errors.root ? (
-                    <div className="rounded-neo border-brutal bg-red-50 px-4 py-3 text-sm text-danger">
+                    <NeoBadge variant="danger" className="w-full justify-center px-4 py-3 text-sm normal-case tracking-normal">
                       {otpForm.formState.errors.root.message}
-                    </div>
+                    </NeoBadge>
                   ) : null}
                   <div className="flex flex-wrap gap-3">
-                    <Button type="submit" size="lg" className="flex-1" disabled={otpForm.formState.isSubmitting}>
+                    <NeoButton type="submit" size="lg" className="flex-1" disabled={otpForm.formState.isSubmitting}>
                       {otpForm.formState.isSubmitting ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : (
                         <UserPlus className="size-4" />
                       )}
                       Verify and enter app
-                    </Button>
-                    <Button type="button" variant="outline" size="lg" onClick={handleResend}>
+                    </NeoButton>
+                    <NeoButton type="button" variant="secondary" size="lg" onClick={handleResend}>
                       Resend
-                    </Button>
+                    </NeoButton>
                   </div>
                 </form>
               </Form>
@@ -218,7 +220,8 @@ export default function SignUpPage() {
               Sign in
             </Link>
           </p>
-        </div>
+          </PanelContent>
+        </Panel>
       </div>
     </div>
   );

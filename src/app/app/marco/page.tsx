@@ -16,6 +16,7 @@ import {
     Trash2,
     ShieldCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useMarcoStore } from "@/lib/stores/marco-store";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -103,9 +104,11 @@ export default function MarcoPage() {
             if (res.ok) {
                 const data = await res.json();
                 setThreads(data);
+            } else {
+                toast.error("Failed to load Marco conversations");
             }
         } catch {
-            /* silently fail */
+            toast.error("Failed to load Marco conversations");
         } finally {
             setLoadingThreads(false);
         }
@@ -129,7 +132,10 @@ export default function MarcoPage() {
                 setMessages(data.messages || []);
                 setLoadingMessages(false);
             })
-            .catch(() => setLoadingMessages(false));
+            .catch(() => {
+                toast.error("Failed to load Marco messages");
+                setLoadingMessages(false);
+            });
     }, [activeThreadId]);
 
     // ─── Auto-scroll ────────────────────────────────────────────
@@ -145,9 +151,11 @@ export default function MarcoPage() {
                 const thread = await res.json();
                 setActiveThread(thread.id);
                 await fetchThreads();
+            } else {
+                toast.error("Failed to create a new conversation");
             }
         } catch {
-            /* silently fail */
+            toast.error("Failed to create a new conversation");
         }
     };
 
@@ -162,7 +170,7 @@ export default function MarcoPage() {
             }
             await fetchThreads();
         } catch {
-            /* silently fail */
+            toast.error("Failed to delete that conversation");
         }
     };
 
@@ -181,8 +189,11 @@ export default function MarcoPage() {
                     const thread = await res.json();
                     threadId = thread.id;
                     setActiveThread(thread.id);
+                } else {
+                    toast.error("Failed to create a new conversation");
                 }
             } catch {
+                toast.error("Failed to create a new conversation");
                 return;
             }
         }
@@ -262,7 +273,7 @@ export default function MarcoPage() {
             // Refresh threads to get updated title
             await fetchThreads();
         } catch (err) {
-            console.error("[Marco] Send failed:", err);
+            toast.error("Marco could not send that message");
             setMessages((prev) => [
                 ...prev,
                 {

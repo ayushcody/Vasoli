@@ -14,9 +14,9 @@ export interface Goal {
   color?: string;
   icon?: string;
   userId: string;
-  contributions: GoalContribution[];
-  createdAt: string;
-  updatedAt: string;
+  contributions?: GoalContribution[];
+  createdAt?: string;
+  updatedAt?: string;
   progress: number;
   daysRemaining?: number;
 }
@@ -58,14 +58,14 @@ function mapGoal(g: any): Goal {
     targetAmount: target,
     currentAmount: current,
     deadline: g.dueDate?.toDate().toISOString(),
-    status: g.active ? 'ACTIVE' : 'ARCHIVED',
+    status: g.status as Goal['status'],
     color: g.color,
     icon: g.icon,
     userId: g.userId,
-    contributions: [],
-    createdAt: g.createdAt?.toDate().toISOString() || new Date().toISOString(),
-    updatedAt: g.updatedAt?.toDate().toISOString() || new Date().toISOString(),
+    createdAt: g.createdAt?.toDate().toISOString(),
+    updatedAt: g.updatedAt?.toDate().toISOString(),
     progress: Math.min(100, Math.round((current / target) * 100)) || 0,
+    daysRemaining: g.dueDate ? Math.ceil((g.dueDate.toDate().getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : undefined,
   };
 }
 

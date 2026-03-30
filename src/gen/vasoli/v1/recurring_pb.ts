@@ -172,6 +172,26 @@ export class UpdateRuleRequest extends Message<UpdateRuleRequest> {
    */
   active?: boolean;
 
+  /**
+   * @generated from field: optional google.protobuf.Timestamp next_due_date = 5;
+   */
+  nextDueDate?: Timestamp;
+
+  /**
+   * @generated from field: optional string merchant_norm = 6;
+   */
+  merchantNorm?: string;
+
+  /**
+   * @generated from field: optional string type = 7;
+   */
+  type?: string;
+
+  /**
+   * @generated from field: optional string category_id = 8;
+   */
+  categoryId?: string;
+
   constructor(data?: PartialMessage<UpdateRuleRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -184,6 +204,10 @@ export class UpdateRuleRequest extends Message<UpdateRuleRequest> {
     { no: 2, name: "amount_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
     { no: 3, name: "cadence", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "active", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "next_due_date", kind: "message", T: Timestamp, opt: true },
+    { no: 6, name: "merchant_norm", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 7, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "category_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRuleRequest {
@@ -467,6 +491,16 @@ export class CreateRuleFromCandidateRequest extends Message<CreateRuleFromCandid
    */
   nextDueDate?: Timestamp;
 
+  /**
+   * @generated from field: optional string type = 5;
+   */
+  type?: string;
+
+  /**
+   * @generated from field: optional string category_id = 6;
+   */
+  categoryId?: string;
+
   constructor(data?: PartialMessage<CreateRuleFromCandidateRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -479,6 +513,8 @@ export class CreateRuleFromCandidateRequest extends Message<CreateRuleFromCandid
     { no: 2, name: "amount_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "cadence", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "next_due_date", kind: "message", T: Timestamp },
+    { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "category_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateRuleFromCandidateRequest {
@@ -547,6 +583,16 @@ export class RecurringRule extends Message<RecurringRule> {
    */
   cancelledAt?: Timestamp;
 
+  /**
+   * @generated from field: string type = 10;
+   */
+  type = "";
+
+  /**
+   * @generated from field: optional string category_id = 11;
+   */
+  categoryId?: string;
+
   constructor(data?: PartialMessage<RecurringRule>) {
     super();
     proto3.util.initPartial(data, this);
@@ -564,6 +610,8 @@ export class RecurringRule extends Message<RecurringRule> {
     { no: 7, name: "active", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "snoozed_until", kind: "message", T: Timestamp, opt: true },
     { no: 9, name: "cancelled_at", kind: "message", T: Timestamp, opt: true },
+    { no: 10, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "category_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RecurringRule {

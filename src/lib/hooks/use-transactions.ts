@@ -21,8 +21,8 @@ export interface Transaction {
     color?: string;
   };
   splits?: TransactionSplit[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TransactionSplit {
@@ -67,16 +67,15 @@ function mapTransaction(t: any): Transaction {
     id: t.id,
     amount: Number(t.amountPaise) / 100,
     description: t.description,
-    date: t.date?.toDate().toISOString() || new Date().toISOString(),
+    date: t.date?.toDate().toISOString() || "",
     type: t.type as any,
     receiptUrl: t.receiptUrl,
     isRecurring: t.isRecurring,
     recurringId: t.recurringId,
     userId: t.userId,
     categoryId: t.categoryId,
-    category: t.categoryId ? { id: t.categoryId, name: "Category", icon: "📝" } : undefined,
-    createdAt: t.createdAt?.toDate().toISOString() || new Date().toISOString(),
-    updatedAt: t.updatedAt?.toDate().toISOString() || new Date().toISOString(),
+    createdAt: t.createdAt?.toDate().toISOString(),
+    updatedAt: t.updatedAt?.toDate().toISOString(),
   };
 }
 
@@ -89,6 +88,10 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     queryFn: async () => {
       const res = await transactionClient.listTransactions({
         pageSize: pageSize || 50,
+        type,
+        categoryId,
+        startDate: startDate ? Timestamp.fromDate(new Date(startDate)) : undefined,
+        endDate: endDate ? Timestamp.fromDate(new Date(endDate)) : undefined,
       });
       return res.transactions.map(mapTransaction);
     },

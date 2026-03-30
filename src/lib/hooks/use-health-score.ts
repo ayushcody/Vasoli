@@ -23,13 +23,13 @@ export interface HealthScoreInsight {
 }
 
 export interface FinancialHealthScore {
-  id: string;
+  id?: string;
   score: number;
   components: HealthScoreComponent[];
   factors: HealthScoreFactor[];
   insights: HealthScoreInsight[];
-  date: string;
-  userId: string;
+  date?: string;
+  userId?: string;
 }
 
 export interface HealthScoreHistory {
@@ -69,7 +69,6 @@ export function useHealthScore() {
           priority: i.priority as any,
         })),
         date: new Date().toISOString(),
-        userId: 'current-user',
       };
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -82,12 +81,7 @@ export function useHealthScoreHistory(options: { days?: number } = {}) {
   return useQuery({
     queryKey: [HEALTH_SCORE_KEY, 'history', { days }],
     queryFn: async () => {
-      // Mock for now or add to proto
-      return {
-        scores: [],
-        trend: 'stable',
-        change: 0,
-      } as HealthScoreHistory;
+      return null;
     },
     staleTime: 1000 * 60 * 10,
   });
@@ -118,13 +112,7 @@ export function useHealthScoreComparison() {
   return useQuery({
     queryKey: [HEALTH_SCORE_KEY, 'comparison'],
     queryFn: async () => {
-      // Stub
-      return {
-        yourScore: 75,
-        averageScore: 68,
-        percentile: 82,
-        comparisonGroup: 'Similar profiles',
-      };
+      return null;
     },
     staleTime: 1000 * 60 * 60, // 1 hour
   });

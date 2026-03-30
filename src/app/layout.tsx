@@ -7,13 +7,13 @@ import { absoluteUrl, siteConfig } from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: '--font-inter',
+  variable: "--font-inter",
 });
 
 const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: '--font-fraunces',
-  weight: ['600', '700', '800'],
+  variable: "--font-fraunces",
+  weight: ["600", "700", "800"],
 });
 
 export const metadata: Metadata = {

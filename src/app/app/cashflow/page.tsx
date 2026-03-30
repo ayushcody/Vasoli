@@ -8,8 +8,11 @@ import {
 import { Shield, AlertTriangle, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import {
     computeCashflow, applyWhatIf,
-    type CashflowInput, type CashflowResult, type RecurringEvent
+    type RecurringEvent
 } from "@/lib/engine/cashflow";
+import { InlineErrorState, ScreenEmptyState } from "@/components/app/screen-states";
+import { NeoButton } from "@/components/ui/neo-button";
+import { recurringClient, insightsClient } from "@/lib/rpc/clients";
 
 const CONFIDENCE_CONFIG = {
     high: { label: "High Confidence", color: "bg-success/15 text-success border-success/30", icon: Shield },
@@ -17,24 +20,31 @@ const CONFIDENCE_CONFIG = {
     low: { label: "Low", color: "bg-danger/15 text-danger border-danger/30", icon: AlertTriangle },
 };
 
-import { recurringClient, insightsClient } from "@/lib/rpc/clients";
-
 export default function CashflowPage() {
     const [rules, setRules] = useState<RecurringEvent[]>([]);
     const [balance, setBalance] = useState(0);
     const [whatIfAmount, setWhatIfAmount] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        let active = true;
+
+        setLoading(true);
+        setError(null);
 
         Promise.all([
             recurringClient.listUpcoming({ daysAhead: 60 }),
             insightsClient.getSummary({ monthYear: currentMonth }),
         ]).then(([upcoming, summary]) => {
+            if (!active) {
+                return;
+            }
             const mapped: RecurringEvent[] = (upcoming.rules || []).map((r) => ({
                 amount: Number(r.amountPaise) / 100,
-                type: (r.amountPaise < BigInt(0) ? "EXPENSE" : "INCOME") as any, // Simple heuristic or use rule type if added
+                type: r.amountPaise < BigInt(0) ? "bill" : "income",
                 cadence: r.cadence as any,
                 nextDueDate: r.nextDueDate?.toDate().toISOString() || new Date().toISOString(),
                 merchant: r.merchantNorm,
@@ -43,10 +53,17 @@ export default function CashflowPage() {
             setBalance(Number(summary.balancePaise) / 100);
             setLoading(false);
         }).catch(err => {
-            console.error("Failed to fetch cashflow data:", err);
+            if (!active) {
+                return;
+            }
+            setError(err instanceof Error ? err.message : "Failed to load cashflow data.");
             setLoading(false);
         });
-    }, []);
+
+        return () => {
+            active = false;
+        };
+    }, [reloadKey]);
 
     const baseResult = useMemo(() => {
         return computeCashflow({
@@ -74,6 +91,30 @@ export default function CashflowPage() {
     if (loading) {
         return (
             <div className="neo-surface-lg p-8 text-center text-taupe">Loading cashflow data...</div>
+        );
+    }
+
+    if (error) {
+        return (
+            <InlineErrorState
+                title="Cashflow data is unavailable"
+                description={error}
+                onRetry={() => setReloadKey((value) => value + 1)}
+            />
+        );
+    }
+
+    if (rules.length === 0) {
+        return (
+            <ScreenEmptyState
+                icon={Calendar}
+                title="No recurring events yet"
+                description="Add recurring income and bills to unlock a real 60-day forecast."
+                cta={{
+                    label: "Retry",
+                    onClick: () => setReloadKey((value) => value + 1),
+                }}
+            />
         );
     }
 
@@ -219,6 +260,11 @@ export default function CashflowPage() {
                     <div className="border-brutal rounded-neo bg-paper-1 px-4 py-2 font-bold font-serif tabular-nums text-ink min-w-[100px] text-center">
                         ₹{whatIfAmount.toLocaleString("en-IN")}
                     </div>
+                </div>
+                <div className="mt-4">
+                    <NeoButton variant="secondary" size="sm" onClick={() => setWhatIfAmount(0)}>
+                        Reset scenario
+                    </NeoButton>
                 </div>
                 {whatIfAmount > 0 && (
                     <div className="mt-3 text-sm text-taupe">

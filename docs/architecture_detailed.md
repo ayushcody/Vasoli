@@ -1,30 +1,35 @@
 # Vasoli Project Architecture
 
-A comprehensive overview of the Vasoli personal finance management system.
-
 ## 1. High-Level Architecture
 
-Vasoli follows a modern service-oriented architecture, separating the concerns of the presentation layer, business logic, and data persistence.
+Vasoli uses a single finance-domain data contract:
+
+- The Next.js app is a UI layer.
+- Finance data flows through generated ConnectRPC clients only.
+- The Go backend owns domain logic, validation, and persistence.
+- Supabase is used for auth/session management and Marco thread persistence.
 
 ```mermaid
 graph TD
-    subgraph Client ["Client (Browser)"]
-        A[Next.js App Router] --> B[React Components]
-        B --> C[ConnectRPC Web Client]
-        B --> D[Supabase Auth Client]
+    subgraph Client ["Client (Browser / Next.js)"]
+        A[App Router Pages] --> B[Hooks in src/lib/hooks]
+        B --> C[Generated ConnectRPC TS Clients]
+        A --> D[Supabase Auth Session]
     end
 
-    subgraph Backend ["Backend (Go)"]
-        C -- gRPC-Web / Connect --> E[ConnectRPC Server]
-        E --> F[Auth Interceptor (JWT)]
-        F --> G[Service Implementation]
-        G --> H[SQLC / PGX Layer]
+    subgraph NextAPI ["Next.js API Routes"]
+        E[/api/marco/*] --> F[Marco tool execution]
+        F --> C
+        E --> G[Supabase thread/message persistence]
     end
 
-    subgraph Persistence ["Persistence & Services"]
-        H --> I[Supabase PostgreSQL]
-        G --> J[Nodemailer / Gmail OTP]
-        D --> K[Supabase Auth Service]
+    subgraph Backend ["Go Backend"]
+        C --> H[ConnectRPC Server]
+        H --> I[JWT Auth Interceptor]
+        H --> J[Request ID + RPC Logging]
+        I --> K[Service Handlers]
+        K --> L[SQLC + pgx]
+        L --> M[Supabase PostgreSQL]
     end
 ```
 
@@ -32,68 +37,58 @@ graph TD
 
 | Component | Technology |
 | :--- | :--- |
-| **Frontend Framework** | Next.js 14 (App Router), React 18 |
-| **Styling** | Tailwind CSS, Framer Motion |
-| **Icons** | Lucide React |
-| **Communication** | ConnectRPC (gRPC-compatible) |
-| **Backend Language** | Go (Golang) 1.25 |
-| **Backend Framework** | ConnectRPC (Go), Standard Library `net/http` |
-| **Database** | Supabase (PostgreSQL) |
-| **Authentication** | Supabase Auth (JWT) |
-| **ORM / Querying** | Prisma (Frontend types) / SQLC (Backend) |
-| **Email Service** | NodeMailer (via Gmail SMTP) |
+| Frontend | Next.js 14, React 18, TypeScript |
+| State / Data | TanStack Query, Zustand |
+| Styling / Motion | Tailwind CSS, Framer Motion |
+| RPC | ConnectRPC with generated TS and Go clients |
+| Backend | Go 1.25, `net/http`, ConnectRPC |
+| Database | Supabase PostgreSQL |
+| Auth | Supabase Auth with JWT validation in Go |
+| Query Layer | SQLC + pgx |
+| AI | Gemini-backed Marco tools executed through Next.js API routes and ConnectRPC |
 
-## 3. Implementation Details
+## 3. Finance Data Contract
 
-### Authentication & Security
-- **Supabase Auth**: Handles secure user registration and session management.
-- **JWT Validation**: The Go backend uses an `AuthInterceptor` to validate Supabase-issued JWTs.
-- **OTP Flow**: During signup, a custom NodeMailer service sends a verification code via Gmail to ensure valid user emails.
+Architecture contract:
 
-### gRPC / ConnectRPC Integration
-- **Code Generation**: Proto definitions are maintained in `backend/proto`. `buf` is used to generate typed clients for both TypeScript and Go.
-- **Statelessness**: The backend remains stateless, extracting user identity from the `Authorization: Bearer <JWT>` header in every request.
+- All finance-domain data is fetched through `src/gen/vasoli/v1/*` clients.
+- Page components must use hooks from `src/lib/hooks/`.
+- Prisma is not part of the active finance data path.
+- Legacy REST finance clients are not part of the active architecture.
+- Supabase direct table access is reserved for auth/session concerns and Marco thread persistence.
 
-## 4. API Endpoints (gRPC Services)
+## 4. Backend Services
 
-The backend exposes several specialized services via ConnectRPC:
-
-### UserService
-| Method | Description |
+| Service | Responsibility |
 | :--- | :--- |
-| `GetProfile` | Fetches the authenticated user's profile information. |
-| `UpdateProfile` | Updates user details like name or avatar. |
-| `GetWealthAnalytics` | Returns high-level financial health data. |
+| `UserService` | Profiles and wealth analytics derived from authenticated context |
+| `TransactionService` | Transaction CRUD, scoped reads, SQL-backed filters, pagination |
+| `BudgetService` | Budget CRUD and computed spend aggregation |
+| `GoalService` | Goal CRUD and contributions |
+| `ImportService` | CSV statement import, dedupe, partial failure reporting |
+| `RecurringService` | Rule management, upcoming event expansion, snooze/cancel workflows |
+| `ReceiptService` | Receipt lifecycle storage and expiring receipt views |
+| `CategoryService` | Category lists and transaction categorisation rules |
+| `InsightsService` | Summary math, zine metrics, health score inputs |
+| `ReminderService` | Reserved; currently typed unimplemented responses |
 
-### TransactionService
-| Method | Description |
-| :--- | :--- |
-| `CreateTransaction` | Records a new income or expense. |
-| `ListTransactions` | Returns a paginated list of transactions with filtering. |
-| `UpdateTransaction` | Modifies an existing transaction record. |
-| `DeleteTransaction` | Removes a transaction. |
+## 5. Marco Architecture
 
-### BudgetService
-| Method | Description |
-| :--- | :--- |
-| `CreateBudget` | Sets a spending limit for a specific category or period. |
-| `ListBudgets` | Lists all active and past budgets. |
-| `UpdateBudget` | Adjusts budget limits or periods. |
-| `DeleteBudget` | Deletes a budget. |
+Marco no longer reads finance data through Prisma or direct table queries.
 
-### GoalService
-| Method | Description |
-| :--- | :--- |
-| `CreateGoal` | Sets a new financial savings goal (e.g., "New Car"). |
-| `ListGoals` | Lists current goals and progress. |
-| `AddContribution` | Adds a saving amount towards a specific goal. |
+Current flow:
 
-## 5. Performance Metrics
+1. `/api/marco/chat` authenticates the user through Supabase.
+2. The route creates server-side ConnectRPC clients with the user's JWT.
+3. Marco tools call backend services such as `TransactionService`, `RecurringService`, `GoalService`, `ReceiptService`, `UserService`, and `CategoryService`.
+4. Tool results are mapped into Gemini-friendly tool payloads.
+5. Supabase stores only Marco threads and messages.
 
-Vasoli is designed for high performance and responsiveness:
+This keeps Marco aligned with the same backend truth used by the rest of the app.
 
-1. **Protocol Efficiency**: Using Protobuf significantly reduces payload size compared to standard JSON REST APIs (approx. 30-50% reduction).
-2. **Type Safety**: End-to-end type safety (Proto -> Go/TS) eliminates entire classes of runtime errors and speeds up development.
-3. **Optimized Queries**: SQLC generates high-performance, type-safe Go code for PostgreSQL queries, ensuring minimal database latency.
-4. **Edge Readiness**: Next.js App Router and Supabase enable easy scaling and low-latency delivery of static assets.
-5. **Cold Starts**: The Go backend is optimized for minimal memory footprint and instant startup times, ideal for modern containerized environments.
+## 6. Observability
+
+- Every frontend RPC request attaches an `x-request-id`.
+- The Go server propagates a request ID through request context and response headers.
+- RPC failures are logged with structured fields including `method`, `user_id`, `request_id`, and `error`.
+- Next.js user-facing failures use `toast.error` and `logError(context, error)` instead of ad hoc `console.error` calls.

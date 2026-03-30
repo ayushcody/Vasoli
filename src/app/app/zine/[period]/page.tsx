@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { InlineErrorState, ScreenEmptyState } from "@/components/app/screen-states"
 import { insightsClient } from "@/lib/rpc/clients"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatCurrency } from "@/lib/utils"
@@ -75,10 +76,13 @@ export default function ZinePage() {
   const period = params.period as string
   const [data, setData] = useState<ZineData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let active = true
     setLoading(true)
+    setError(null)
 
     insightsClient
       .getZine({ monthYear: period })
@@ -101,9 +105,7 @@ export default function ZinePage() {
             ? {
                 merchant: response.biggestSpend.merchant,
                 amount: Number(response.biggestSpend.amountPaise) / 100,
-                date:
-                  response.biggestSpend.date?.toDate().toISOString() ||
-                  new Date().toISOString(),
+                date: response.biggestSpend.date?.toDate().toISOString() || "",
               }
             : null,
           streak: response.streak,
@@ -118,8 +120,8 @@ export default function ZinePage() {
         setLoading(false)
       })
       .catch((error) => {
-        console.error("Failed to fetch zine:", error)
         if (active) {
+          setError(error instanceof Error ? error.message : "Failed to load this zine.")
           setLoading(false)
         }
       })
@@ -127,7 +129,7 @@ export default function ZinePage() {
     return () => {
       active = false
     }
-  }, [period])
+  }, [period, reloadKey])
 
   const monthLabel = useMemo(() => {
     return new Date(`${period}-01`).toLocaleDateString("en-IN", {
@@ -225,7 +227,24 @@ export default function ZinePage() {
   }
 
   if (!data) {
-    return <div className="neo-surface-lg p-8 text-center text-taupe">No zine data available for this month.</div>
+    if (error) {
+      return (
+        <InlineErrorState
+          title="Ledger Zine is unavailable"
+          description={error}
+          onRetry={() => setReloadKey((value) => value + 1)}
+        />
+      )
+    }
+
+    return (
+      <ScreenEmptyState
+        icon={ReceiptText}
+        title="No zine data available"
+        description="This month does not have enough real transaction history to generate a zine yet."
+        cta={{ label: "Retry", onClick: () => setReloadKey((value) => value + 1) }}
+      />
+    )
   }
 
   return (

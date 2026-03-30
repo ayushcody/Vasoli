@@ -7,7 +7,7 @@ export interface Budget {
   id: string;
   name: string;
   amount: number;
-  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  period: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   startDate: string;
   endDate: string;
   categories: string[];
@@ -16,14 +16,14 @@ export interface Budget {
   remaining: number;
   percentage: number;
   isOverBudget: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateBudgetInput {
   name: string;
   amount: number;
-  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  period: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   startDate: string;
   endDate: string;
   categories: string[];
@@ -33,22 +33,22 @@ const BUDGETS_KEY = 'budgets';
 
 function mapBudget(b: any): Budget {
   const amount = Number(b.amountPaise) / 100;
-  const spent = 0; // Need analytics for this
+  const spent = Number(b.spentPaise ?? 0n) / 100;
   return {
     id: b.id,
     name: b.name,
     amount: amount,
     period: b.period as any,
-    startDate: b.startDate?.toDate().toISOString() || new Date().toISOString(),
-    endDate: b.endDate?.toDate().toISOString() || new Date().toISOString(),
+    startDate: b.startDate?.toDate().toISOString() || "",
+    endDate: b.endDate?.toDate().toISOString() || "",
     categories: b.categories ? b.categories.split(",") : [],
     userId: b.userId,
     spent: spent,
     remaining: amount - spent,
     percentage: amount > 0 ? (spent / amount) * 100 : 0,
     isOverBudget: spent > amount,
-    createdAt: b.createdAt?.toDate().toISOString() || new Date().toISOString(),
-    updatedAt: b.updatedAt?.toDate().toISOString() || new Date().toISOString(),
+    createdAt: b.createdAt?.toDate().toISOString(),
+    updatedAt: b.updatedAt?.toDate().toISOString(),
   };
 }
 
@@ -152,8 +152,7 @@ export function useBudgetAlerts() {
   return useQuery({
     queryKey: [BUDGETS_KEY, 'alerts'],
     queryFn: async () => {
-      // Stub for now
-      return [];
+      return null;
     },
     staleTime: 1000 * 60 * 2,
   });

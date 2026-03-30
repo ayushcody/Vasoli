@@ -521,6 +521,8 @@ type ListTransactionsRequest struct {
 	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	Type          *string                `protobuf:"bytes,3,opt,name=type,proto3,oneof" json:"type,omitempty"`
 	CategoryId    *string                `protobuf:"bytes,4,opt,name=category_id,json=categoryId,proto3,oneof" json:"category_id,omitempty"`
+	StartDate     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_date,json=startDate,proto3,oneof" json:"start_date,omitempty"`
+	EndDate       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=end_date,json=endDate,proto3,oneof" json:"end_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -581,6 +583,20 @@ func (x *ListTransactionsRequest) GetCategoryId() string {
 		return *x.CategoryId
 	}
 	return ""
+}
+
+func (x *ListTransactionsRequest) GetStartDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartDate
+	}
+	return nil
+}
+
+func (x *ListTransactionsRequest) GetEndDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndDate
+	}
+	return nil
 }
 
 type ListTransactionsResponse struct {
@@ -989,16 +1005,21 @@ const file_vasoli_v1_transaction_proto_rawDesc = "" +
 	"\x15GetTransactionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"R\n" +
 	"\x16GetTransactionResponse\x128\n" +
-	"\vtransaction\x18\x01 \x01(\v2\x16.vasoli.v1.TransactionR\vtransaction\"\xad\x01\n" +
+	"\vtransaction\x18\x01 \x01(\v2\x16.vasoli.v1.TransactionR\vtransaction\"\xc5\x02\n" +
 	"\x17ListTransactionsRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x17\n" +
 	"\x04type\x18\x03 \x01(\tH\x00R\x04type\x88\x01\x01\x12$\n" +
 	"\vcategory_id\x18\x04 \x01(\tH\x01R\n" +
-	"categoryId\x88\x01\x01B\a\n" +
+	"categoryId\x88\x01\x01\x12>\n" +
+	"\n" +
+	"start_date\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartDate\x88\x01\x01\x12:\n" +
+	"\bend_date\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\aendDate\x88\x01\x01B\a\n" +
 	"\x05_typeB\x0e\n" +
-	"\f_category_id\"~\n" +
+	"\f_category_idB\r\n" +
+	"\v_start_dateB\v\n" +
+	"\t_end_date\"~\n" +
 	"\x18ListTransactionsResponse\x12:\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x16.vasoli.v1.TransactionR\ftransactions\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd2\x05\n" +
@@ -1083,24 +1104,26 @@ var file_vasoli_v1_transaction_proto_depIdxs = []int32{
 	11, // 3: vasoli.v1.CreateTransactionRequest.date:type_name -> google.protobuf.Timestamp
 	0,  // 4: vasoli.v1.CreateTransactionResponse.transaction:type_name -> vasoli.v1.Transaction
 	0,  // 5: vasoli.v1.GetTransactionResponse.transaction:type_name -> vasoli.v1.Transaction
-	0,  // 6: vasoli.v1.ListTransactionsResponse.transactions:type_name -> vasoli.v1.Transaction
-	11, // 7: vasoli.v1.UpdateTransactionRequest.date:type_name -> google.protobuf.Timestamp
-	0,  // 8: vasoli.v1.UpdateTransactionResponse.transaction:type_name -> vasoli.v1.Transaction
-	1,  // 9: vasoli.v1.TransactionService.CreateTransaction:input_type -> vasoli.v1.CreateTransactionRequest
-	3,  // 10: vasoli.v1.TransactionService.GetTransaction:input_type -> vasoli.v1.GetTransactionRequest
-	5,  // 11: vasoli.v1.TransactionService.ListTransactions:input_type -> vasoli.v1.ListTransactionsRequest
-	7,  // 12: vasoli.v1.TransactionService.UpdateTransaction:input_type -> vasoli.v1.UpdateTransactionRequest
-	9,  // 13: vasoli.v1.TransactionService.DeleteTransaction:input_type -> vasoli.v1.DeleteTransactionRequest
-	2,  // 14: vasoli.v1.TransactionService.CreateTransaction:output_type -> vasoli.v1.CreateTransactionResponse
-	4,  // 15: vasoli.v1.TransactionService.GetTransaction:output_type -> vasoli.v1.GetTransactionResponse
-	6,  // 16: vasoli.v1.TransactionService.ListTransactions:output_type -> vasoli.v1.ListTransactionsResponse
-	8,  // 17: vasoli.v1.TransactionService.UpdateTransaction:output_type -> vasoli.v1.UpdateTransactionResponse
-	10, // 18: vasoli.v1.TransactionService.DeleteTransaction:output_type -> vasoli.v1.DeleteTransactionResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	11, // 6: vasoli.v1.ListTransactionsRequest.start_date:type_name -> google.protobuf.Timestamp
+	11, // 7: vasoli.v1.ListTransactionsRequest.end_date:type_name -> google.protobuf.Timestamp
+	0,  // 8: vasoli.v1.ListTransactionsResponse.transactions:type_name -> vasoli.v1.Transaction
+	11, // 9: vasoli.v1.UpdateTransactionRequest.date:type_name -> google.protobuf.Timestamp
+	0,  // 10: vasoli.v1.UpdateTransactionResponse.transaction:type_name -> vasoli.v1.Transaction
+	1,  // 11: vasoli.v1.TransactionService.CreateTransaction:input_type -> vasoli.v1.CreateTransactionRequest
+	3,  // 12: vasoli.v1.TransactionService.GetTransaction:input_type -> vasoli.v1.GetTransactionRequest
+	5,  // 13: vasoli.v1.TransactionService.ListTransactions:input_type -> vasoli.v1.ListTransactionsRequest
+	7,  // 14: vasoli.v1.TransactionService.UpdateTransaction:input_type -> vasoli.v1.UpdateTransactionRequest
+	9,  // 15: vasoli.v1.TransactionService.DeleteTransaction:input_type -> vasoli.v1.DeleteTransactionRequest
+	2,  // 16: vasoli.v1.TransactionService.CreateTransaction:output_type -> vasoli.v1.CreateTransactionResponse
+	4,  // 17: vasoli.v1.TransactionService.GetTransaction:output_type -> vasoli.v1.GetTransactionResponse
+	6,  // 18: vasoli.v1.TransactionService.ListTransactions:output_type -> vasoli.v1.ListTransactionsResponse
+	8,  // 19: vasoli.v1.TransactionService.UpdateTransaction:output_type -> vasoli.v1.UpdateTransactionResponse
+	10, // 20: vasoli.v1.TransactionService.DeleteTransaction:output_type -> vasoli.v1.DeleteTransactionResponse
+	16, // [16:21] is the sub-list for method output_type
+	11, // [11:16] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_vasoli_v1_transaction_proto_init() }

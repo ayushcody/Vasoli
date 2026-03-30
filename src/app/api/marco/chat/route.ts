@@ -3,12 +3,16 @@ import { NextRequest } from "next/server";
 import { getGenAI, MARCO_MODEL, MARCO_TOOL_DECLARATIONS } from "@/lib/marco/gemini";
 import { MARCO_SYSTEM_PROMPT } from "@/lib/marco/system-prompt";
 import { executeTool, type ToolName } from "@/lib/marco/tools";
+import { logError } from "@/lib/logger";
 import { Content, Part, FunctionCall } from "@google/genai";
 
 export async function POST(req: NextRequest) {
     try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const [{ data: { user } }, { data: { session } }] = await Promise.all([
+            supabase.auth.getUser(),
+            supabase.auth.getSession(),
+        ]);
         if (!user) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), {
                 status: 401,
@@ -103,7 +107,14 @@ export async function POST(req: NextRequest) {
                                     encoder.encode(`data: ${JSON.stringify({ type: "tool_use", tool: toolName })}\n\n`)
                                 );
 
-                                const result = await executeTool(toolName, user.id, toolArgs);
+                                const result = await executeTool(
+                                    toolName,
+                                    {
+                                        accessToken: session?.access_token || "",
+                                        rpcBaseUrl: new URL(process.env.NEXT_PUBLIC_RPC_BASE_URL || "/rpc", req.url).toString(),
+                                    },
+                                    toolArgs
+                                );
 
                                 contents.push({
                                     role: "user",
@@ -173,7 +184,7 @@ export async function POST(req: NextRequest) {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
                     controller.close();
                 } catch (err) {
-                    console.error("[marco/chat] Stream error:", err);
+                    logError("[marco/chat] stream", err);
                     controller.enqueue(
                         encoder.encode(`data: ${JSON.stringify({ type: "error", content: "Sorry, something went wrong." })}\n\n`)
                     );
@@ -190,7 +201,7 @@ export async function POST(req: NextRequest) {
             },
         });
     } catch (err) {
-        console.error("[marco/chat] Error:", err);
+        logError("[marco/chat]", err);
         return new Response(JSON.stringify({ error: "Internal server error" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },

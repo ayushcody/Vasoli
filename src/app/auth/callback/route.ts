@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/logger";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -13,13 +14,12 @@ export async function GET(request: Request) {
             if (!error) {
                 return NextResponse.redirect(`${origin}${next}`);
             }
-            console.error("[auth/callback] Code exchange failed:", error.message);
+            logError("auth.callback.exchange_code", error);
         } catch (err) {
-            console.error("[auth/callback] Unexpected error:", err);
+            logError("auth.callback.unexpected", err);
         }
     }
 
     // return the user to an error page with instructions
     return NextResponse.redirect(`${origin}/auth/signin?error=auth_callback_error`);
 }
-

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/logger";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
 
         return NextResponse.json(threads || []);
     } catch (err) {
-        console.error("[marco/threads GET]", err);
+        logError("[marco/threads GET]", err);
         return NextResponse.json([]);
     }
 }
@@ -42,7 +43,7 @@ export async function POST() {
 
         return NextResponse.json(thread, { status: 201 });
     } catch (err) {
-        console.error("[marco/threads POST]", err);
+        logError("[marco/threads POST]", err);
         return NextResponse.json(
             { error: "Database unavailable. Please try again later." },
             { status: 503 }

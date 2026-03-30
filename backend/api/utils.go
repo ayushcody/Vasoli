@@ -1,10 +1,35 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type requestIDContextKey struct{}
+
+// WithRequestID stores the current request ID in context so handlers and interceptors
+// can emit correlated logs.
+func WithRequestID(ctx context.Context, requestID string) context.Context {
+	return context.WithValue(ctx, requestIDContextKey{}, requestID)
+}
+
+func RequestIDFromContext(ctx context.Context) string {
+	requestID, _ := ctx.Value(requestIDContextKey{}).(string)
+	return requestID
+}
+
+func LogRPCError(ctx context.Context, method string, err error) {
+	userID, _ := UserIDFromContext(ctx)
+	slog.Error("rpc handler error",
+		"method", method,
+		"user_id", userID,
+		"request_id", RequestIDFromContext(ctx),
+		"error", err,
+	)
+}
 
 // UUIDToString converts a pgtype.UUID to a standard string representation
 func UUIDToString(u pgtype.UUID) string {

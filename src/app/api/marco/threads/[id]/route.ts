@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/logger";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
 
         return NextResponse.json(formattedThread);
     } catch (err) {
-        console.error("[marco/threads/[id] GET]", err);
+        logError("[marco/threads/[id] GET]", err);
         return NextResponse.json(
             { error: "Failed to fetch thread" },
             { status: 500 }
@@ -65,7 +66,7 @@ export async function DELETE(
 
         return NextResponse.json({ deleted: true });
     } catch (err) {
-        console.error("[marco/threads/[id] DELETE]", err);
+        logError("[marco/threads/[id] DELETE]", err);
         return NextResponse.json(
             { error: "Failed to delete thread" },
             { status: 500 }

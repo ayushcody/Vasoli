@@ -23,8 +23,8 @@ export interface RecurringTransaction {
     icon?: string;
     color?: string;
   };
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateRecurringInput {
@@ -44,14 +44,14 @@ function mapRecurring(r: any): RecurringTransaction {
   return {
     id: r.id,
     amount: Number(r.amountPaise) / 100,
-    description: r.merchantNorm || "Recurring",
-    type: 'EXPENSE', // Defaulting to EXPENSE for now
-    frequency: r.cadence as any,
-    startDate: r.nextDueDate?.toDate().toISOString() || new Date().toISOString(),
+    description: r.merchantNorm,
+    type: r.type as 'INCOME' | 'EXPENSE',
+    frequency: r.cadence.toUpperCase() as RecurringTransaction['frequency'],
+    startDate: r.nextDueDate?.toDate().toISOString() || "",
+    nextRun: r.nextDueDate?.toDate().toISOString(),
     isActive: r.active,
     userId: r.userId,
-    createdAt: new Date().toISOString(), // Mock
-    updatedAt: new Date().toISOString(), // Mock
+    categoryId: r.categoryId,
   };
 }
 
@@ -87,8 +87,10 @@ export function useCreateRecurring() {
       const res = await recurringClient.createRuleFromCandidate({
         merchantNorm: data.description,
         amountPaise: BigInt(Math.round(data.amount * 100)),
-        cadence: data.frequency,
+        cadence: data.frequency.toLowerCase(),
         nextDueDate: Timestamp.fromDate(new Date(data.startDate)),
+        type: data.type,
+        categoryId: data.categoryId,
       });
       return mapRecurring(res.rule);
     },
@@ -112,7 +114,9 @@ export function useUpdateRecurring() {
       const res = await recurringClient.updateRule({
         id,
         amountPaise: data.amount !== undefined ? BigInt(Math.round(data.amount * 100)) : undefined,
-        cadence: data.frequency,
+        cadence: data.frequency?.toLowerCase(),
+        type: data.type,
+        categoryId: data.categoryId,
       });
       return mapRecurring(res.rule);
     },
@@ -179,8 +183,8 @@ export function useUpcomingRecurring() {
       const res = await recurringClient.listUpcoming({ daysAhead: 30 });
       return res.rules.map(r => ({
         recurring: mapRecurring(r),
-        nextOccurrence: r.nextDueDate?.toDate().toISOString() || new Date().toISOString(),
-        daysUntil: 7, // Placeholder
+        nextOccurrence: r.nextDueDate?.toDate().toISOString(),
+        daysUntil: r.nextDueDate ? Math.max(0, Math.ceil((r.nextDueDate.toDate().getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : undefined,
       }));
     },
     staleTime: 1000 * 60 * 5,

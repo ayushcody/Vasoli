@@ -62,6 +62,51 @@ type BulkCreateTransactionsParams struct {
 	ImportBatchID pgtype.UUID        `json:"import_batch_id"`
 }
 
+const createBudget = `-- name: CreateBudget :one
+INSERT INTO budgets (
+    user_id, name, amount_paise, period, start_date, end_date, categories
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, user_id, name, amount_paise, period, start_date, end_date, categories, created_at, updated_at
+`
+
+type CreateBudgetParams struct {
+	UserID      pgtype.UUID        `json:"user_id"`
+	Name        string             `json:"name"`
+	AmountPaise int64              `json:"amount_paise"`
+	Period      string             `json:"period"`
+	StartDate   pgtype.Timestamptz `json:"start_date"`
+	EndDate     pgtype.Timestamptz `json:"end_date"`
+	Categories  string             `json:"categories"`
+}
+
+func (q *Queries) CreateBudget(ctx context.Context, arg CreateBudgetParams) (Budget, error) {
+	row := q.db.QueryRow(ctx, createBudget,
+		arg.UserID,
+		arg.Name,
+		arg.AmountPaise,
+		arg.Period,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Categories,
+	)
+	var i Budget
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.AmountPaise,
+		&i.Period,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Categories,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createCategoryRule = `-- name: CreateCategoryRule :one
 INSERT INTO category_rules (user_id, merchant_norm, category_id, confidence, last_used)
 VALUES ($1, $2, $3, $4, NOW())
@@ -151,9 +196,9 @@ func (q *Queries) CreateGoal(ctx context.Context, arg CreateGoalParams) (Goal, e
 }
 
 const createImportBatch = `-- name: CreateImportBatch :one
-INSERT INTO import_batches (user_id, file_hash, bank_format, parsed_count, created_count, matched_count)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, file_hash, bank_format, parsed_count, created_count, matched_count, created_at
+INSERT INTO import_batches (user_id, file_hash, bank_format, parsed_count, created_count, matched_count, failed_count)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, file_hash, bank_format, parsed_count, created_count, matched_count, failed_count, created_at
 `
 
 type CreateImportBatchParams struct {
@@ -163,6 +208,7 @@ type CreateImportBatchParams struct {
 	ParsedCount  int32       `json:"parsed_count"`
 	CreatedCount int32       `json:"created_count"`
 	MatchedCount int32       `json:"matched_count"`
+	FailedCount  int32       `json:"failed_count"`
 }
 
 func (q *Queries) CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (ImportBatch, error) {
@@ -173,6 +219,7 @@ func (q *Queries) CreateImportBatch(ctx context.Context, arg CreateImportBatchPa
 		arg.ParsedCount,
 		arg.CreatedCount,
 		arg.MatchedCount,
+		arg.FailedCount,
 	)
 	var i ImportBatch
 	err := row.Scan(
@@ -183,6 +230,7 @@ func (q *Queries) CreateImportBatch(ctx context.Context, arg CreateImportBatchPa
 		&i.ParsedCount,
 		&i.CreatedCount,
 		&i.MatchedCount,
+		&i.FailedCount,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -264,18 +312,20 @@ func (q *Queries) CreateReceipt(ctx context.Context, arg CreateReceiptParams) (R
 }
 
 const createRecurringRule = `-- name: CreateRecurringRule :one
-INSERT INTO recurring_rules (user_id, merchant_norm, amount_paise, cadence, next_due_date, active)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at
+INSERT INTO recurring_rules (user_id, merchant_norm, amount_paise, type, cadence, next_due_date, active, category_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, user_id, merchant_norm, amount_paise, type, cadence, next_due_date, active, category_id, snoozed_until, cancelled_at, created_at, updated_at
 `
 
 type CreateRecurringRuleParams struct {
 	UserID       pgtype.UUID        `json:"user_id"`
 	MerchantNorm string             `json:"merchant_norm"`
 	AmountPaise  int64              `json:"amount_paise"`
+	Type         string             `json:"type"`
 	Cadence      string             `json:"cadence"`
 	NextDueDate  pgtype.Timestamptz `json:"next_due_date"`
 	Active       bool               `json:"active"`
+	CategoryID   pgtype.UUID        `json:"category_id"`
 }
 
 func (q *Queries) CreateRecurringRule(ctx context.Context, arg CreateRecurringRuleParams) (RecurringRule, error) {
@@ -283,9 +333,11 @@ func (q *Queries) CreateRecurringRule(ctx context.Context, arg CreateRecurringRu
 		arg.UserID,
 		arg.MerchantNorm,
 		arg.AmountPaise,
+		arg.Type,
 		arg.Cadence,
 		arg.NextDueDate,
 		arg.Active,
+		arg.CategoryID,
 	)
 	var i RecurringRule
 	err := row.Scan(
@@ -293,12 +345,15 @@ func (q *Queries) CreateRecurringRule(ctx context.Context, arg CreateRecurringRu
 		&i.UserID,
 		&i.MerchantNorm,
 		&i.AmountPaise,
+		&i.Type,
 		&i.Cadence,
 		&i.NextDueDate,
 		&i.Active,
+		&i.CategoryID,
 		&i.SnoozedUntil,
 		&i.CancelledAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -387,6 +442,53 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 	return i, err
 }
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (id, email, name, avatar_url)
+VALUES ($1, $2, $3, $4)
+RETURNING id, email, name, avatar_url, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	ID        pgtype.UUID `json:"id"`
+	Email     string      `json:"email"`
+	Name      string      `json:"name"`
+	AvatarUrl string      `json:"avatar_url"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.ID,
+		arg.Email,
+		arg.Name,
+		arg.AvatarUrl,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteBudget = `-- name: DeleteBudget :exec
+DELETE FROM budgets
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteBudgetParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteBudget(ctx context.Context, arg DeleteBudgetParams) error {
+	_, err := q.db.Exec(ctx, deleteBudget, arg.ID, arg.UserID)
+	return err
+}
+
 const deleteGoal = `-- name: DeleteGoal :exec
 DELETE FROM goals
 WHERE id = $1 AND user_id = $2
@@ -399,6 +501,21 @@ type DeleteGoalParams struct {
 
 func (q *Queries) DeleteGoal(ctx context.Context, arg DeleteGoalParams) error {
 	_, err := q.db.Exec(ctx, deleteGoal, arg.ID, arg.UserID)
+	return err
+}
+
+const deleteRecurringRule = `-- name: DeleteRecurringRule :exec
+DELETE FROM recurring_rules
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteRecurringRuleParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteRecurringRule(ctx context.Context, arg DeleteRecurringRuleParams) error {
+	_, err := q.db.Exec(ctx, deleteRecurringRule, arg.ID, arg.UserID)
 	return err
 }
 
@@ -415,6 +532,96 @@ type DeleteTransactionParams struct {
 func (q *Queries) DeleteTransaction(ctx context.Context, arg DeleteTransactionParams) error {
 	_, err := q.db.Exec(ctx, deleteTransaction, arg.ID, arg.UserID)
 	return err
+}
+
+const findTransactionDuplicate = `-- name: FindTransactionDuplicate :one
+SELECT id FROM transactions
+WHERE user_id = $1
+    AND date = $2
+    AND amount_paise = $3
+    AND description = $4
+LIMIT 1
+`
+
+type FindTransactionDuplicateParams struct {
+	UserID      pgtype.UUID        `json:"user_id"`
+	Date        pgtype.Timestamptz `json:"date"`
+	AmountPaise int64              `json:"amount_paise"`
+	Description string             `json:"description"`
+}
+
+func (q *Queries) FindTransactionDuplicate(ctx context.Context, arg FindTransactionDuplicateParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findTransactionDuplicate,
+		arg.UserID,
+		arg.Date,
+		arg.AmountPaise,
+		arg.Description,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getBiggestSpendInRange = `-- name: GetBiggestSpendInRange :one
+SELECT
+    COALESCE(NULLIF(merchant_norm, ''), NULLIF(merchant_raw, ''), description) AS merchant,
+    amount_paise,
+    date
+FROM transactions
+WHERE user_id = $1
+    AND date >= $2
+    AND date < $3
+    AND type = 'EXPENSE'
+ORDER BY amount_paise DESC, date DESC
+LIMIT 1
+`
+
+type GetBiggestSpendInRangeParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	StartDate pgtype.Timestamptz `json:"start_date"`
+	EndDate   pgtype.Timestamptz `json:"end_date"`
+}
+
+type GetBiggestSpendInRangeRow struct {
+	Merchant    string             `json:"merchant"`
+	AmountPaise int64              `json:"amount_paise"`
+	Date        pgtype.Timestamptz `json:"date"`
+}
+
+func (q *Queries) GetBiggestSpendInRange(ctx context.Context, arg GetBiggestSpendInRangeParams) (GetBiggestSpendInRangeRow, error) {
+	row := q.db.QueryRow(ctx, getBiggestSpendInRange, arg.UserID, arg.StartDate, arg.EndDate)
+	var i GetBiggestSpendInRangeRow
+	err := row.Scan(&i.Merchant, &i.AmountPaise, &i.Date)
+	return i, err
+}
+
+const getBudget = `-- name: GetBudget :one
+SELECT id, user_id, name, amount_paise, period, start_date, end_date, categories, created_at, updated_at FROM budgets
+WHERE id = $1 AND user_id = $2
+LIMIT 1
+`
+
+type GetBudgetParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetBudget(ctx context.Context, arg GetBudgetParams) (Budget, error) {
+	row := q.db.QueryRow(ctx, getBudget, arg.ID, arg.UserID)
+	var i Budget
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.AmountPaise,
+		&i.Period,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Categories,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getCategoryRule = `-- name: GetCategoryRule :one
@@ -506,8 +713,68 @@ func (q *Queries) GetGoalContributions(ctx context.Context, goalID pgtype.UUID) 
 	return items, nil
 }
 
+const getLeakCategoryIncrease = `-- name: GetLeakCategoryIncrease :one
+WITH current_period AS (
+    SELECT
+        transactions.category_id,
+        SUM(transactions.amount_paise)::BIGINT AS total_paise
+    FROM transactions
+    WHERE transactions.user_id = $1
+        AND transactions.date >= $2
+        AND transactions.date < $3
+        AND transactions.type = 'EXPENSE'
+    GROUP BY transactions.category_id
+),
+previous_period AS (
+    SELECT
+        transactions.category_id,
+        SUM(transactions.amount_paise)::BIGINT AS total_paise
+    FROM transactions
+    WHERE transactions.user_id = $1
+        AND transactions.date >= $4
+        AND transactions.date < $5
+        AND transactions.type = 'EXPENSE'
+    GROUP BY transactions.category_id
+)
+SELECT
+    COALESCE(categories.name, 'Uncategorised') AS category_name,
+    (current_period.total_paise - COALESCE(previous_period.total_paise, 0))::BIGINT AS increase_paise
+FROM current_period
+LEFT JOIN previous_period ON previous_period.category_id = current_period.category_id
+LEFT JOIN categories ON categories.id = current_period.category_id
+WHERE current_period.total_paise > COALESCE(previous_period.total_paise, 0)
+ORDER BY increase_paise DESC, category_name ASC
+LIMIT 1
+`
+
+type GetLeakCategoryIncreaseParams struct {
+	UserID            pgtype.UUID        `json:"user_id"`
+	CurrentStartDate  pgtype.Timestamptz `json:"current_start_date"`
+	CurrentEndDate    pgtype.Timestamptz `json:"current_end_date"`
+	PreviousStartDate pgtype.Timestamptz `json:"previous_start_date"`
+	PreviousEndDate   pgtype.Timestamptz `json:"previous_end_date"`
+}
+
+type GetLeakCategoryIncreaseRow struct {
+	CategoryName  string `json:"category_name"`
+	IncreasePaise int64  `json:"increase_paise"`
+}
+
+func (q *Queries) GetLeakCategoryIncrease(ctx context.Context, arg GetLeakCategoryIncreaseParams) (GetLeakCategoryIncreaseRow, error) {
+	row := q.db.QueryRow(ctx, getLeakCategoryIncrease,
+		arg.UserID,
+		arg.CurrentStartDate,
+		arg.CurrentEndDate,
+		arg.PreviousStartDate,
+		arg.PreviousEndDate,
+	)
+	var i GetLeakCategoryIncreaseRow
+	err := row.Scan(&i.CategoryName, &i.IncreasePaise)
+	return i, err
+}
+
 const getRecurringRule = `-- name: GetRecurringRule :one
-SELECT id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at FROM recurring_rules 
+SELECT id, user_id, merchant_norm, amount_paise, type, cadence, next_due_date, active, category_id, snoozed_until, cancelled_at, created_at, updated_at FROM recurring_rules 
 WHERE id = $1 AND user_id = $2
 `
 
@@ -524,13 +791,56 @@ func (q *Queries) GetRecurringRule(ctx context.Context, arg GetRecurringRulePara
 		&i.UserID,
 		&i.MerchantNorm,
 		&i.AmountPaise,
+		&i.Type,
 		&i.Cadence,
 		&i.NextDueDate,
 		&i.Active,
+		&i.CategoryID,
 		&i.SnoozedUntil,
 		&i.CancelledAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const getSummaryTotals = `-- name: GetSummaryTotals :one
+SELECT
+    COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount_paise ELSE 0 END), 0)::BIGINT AS total_income,
+    COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount_paise ELSE 0 END), 0)::BIGINT AS total_expenses,
+    COALESCE(
+        SUM(
+            CASE
+                WHEN type = 'INCOME' THEN amount_paise
+                WHEN type = 'EXPENSE' THEN -amount_paise
+                ELSE 0
+            END
+        ),
+        0
+    )::BIGINT AS net_balance
+FROM transactions
+WHERE user_id = $1
+    AND date >= $2
+    AND date < $3
+    AND type IN ('INCOME', 'EXPENSE')
+`
+
+type GetSummaryTotalsParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	StartDate pgtype.Timestamptz `json:"start_date"`
+	EndDate   pgtype.Timestamptz `json:"end_date"`
+}
+
+type GetSummaryTotalsRow struct {
+	TotalIncome   int64 `json:"total_income"`
+	TotalExpenses int64 `json:"total_expenses"`
+	NetBalance    int64 `json:"net_balance"`
+}
+
+func (q *Queries) GetSummaryTotals(ctx context.Context, arg GetSummaryTotalsParams) (GetSummaryTotalsRow, error) {
+	row := q.db.QueryRow(ctx, getSummaryTotals, arg.UserID, arg.StartDate, arg.EndDate)
+	var i GetSummaryTotalsRow
+	err := row.Scan(&i.TotalIncome, &i.TotalExpenses, &i.NetBalance)
 	return i, err
 }
 
@@ -575,15 +885,81 @@ func (q *Queries) GetTransaction(ctx context.Context, arg GetTransactionParams) 
 	return i, err
 }
 
+const getTransactionCountInRange = `-- name: GetTransactionCountInRange :one
+SELECT COUNT(*)::INT AS transaction_count
+FROM transactions
+WHERE user_id = $1
+    AND date >= $2
+    AND date < $3
+    AND type IN ('INCOME', 'EXPENSE')
+`
+
+type GetTransactionCountInRangeParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	StartDate pgtype.Timestamptz `json:"start_date"`
+	EndDate   pgtype.Timestamptz `json:"end_date"`
+}
+
+func (q *Queries) GetTransactionCountInRange(ctx context.Context, arg GetTransactionCountInRangeParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getTransactionCountInRange, arg.UserID, arg.StartDate, arg.EndDate)
+	var transaction_count int32
+	err := row.Scan(&transaction_count)
+	return transaction_count, err
+}
+
+const getTransactionDayStreak = `-- name: GetTransactionDayStreak :one
+WITH transaction_days AS (
+    SELECT DISTINCT date::date AS tx_day
+    FROM transactions
+    WHERE user_id = $1
+        AND date >= $2
+        AND date < $3
+        AND type IN ('INCOME', 'EXPENSE')
+),
+streak_groups AS (
+    SELECT
+        tx_day,
+        tx_day - (ROW_NUMBER() OVER (ORDER BY tx_day))::INT AS group_key
+    FROM transaction_days
+),
+streak_lengths AS (
+    SELECT COUNT(*)::INT AS streak
+    FROM streak_groups
+    GROUP BY group_key
+)
+SELECT COALESCE(MAX(streak), 0)::INT AS longest_streak
+FROM streak_lengths
+`
+
+type GetTransactionDayStreakParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	StartDate pgtype.Timestamptz `json:"start_date"`
+	EndDate   pgtype.Timestamptz `json:"end_date"`
+}
+
+func (q *Queries) GetTransactionDayStreak(ctx context.Context, arg GetTransactionDayStreakParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getTransactionDayStreak, arg.UserID, arg.StartDate, arg.EndDate)
+	var longest_streak int32
+	err := row.Scan(&longest_streak)
+	return longest_streak, err
+}
+
 const getUser = `-- name: GetUser :one
-SELECT id, email, created_at FROM users
+SELECT id, email, name, avatar_url, created_at, updated_at FROM users
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
-	err := row.Scan(&i.ID, &i.Email, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -613,6 +989,43 @@ func (q *Queries) GetWealthAnalytics(ctx context.Context, arg GetWealthAnalytics
 	var i GetWealthAnalyticsRow
 	err := row.Scan(&i.Saved, &i.Spent, &i.Invested)
 	return i, err
+}
+
+const listBudgets = `-- name: ListBudgets :many
+SELECT id, user_id, name, amount_paise, period, start_date, end_date, categories, created_at, updated_at FROM budgets
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListBudgets(ctx context.Context, userID pgtype.UUID) ([]Budget, error) {
+	rows, err := q.db.Query(ctx, listBudgets, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Budget
+	for rows.Next() {
+		var i Budget
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.AmountPaise,
+			&i.Period,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Categories,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCategories = `-- name: ListCategories :many
@@ -841,21 +1254,138 @@ func (q *Queries) ListReceipts(ctx context.Context, userID pgtype.UUID) ([]Recei
 	return items, nil
 }
 
+const listRecurringRules = `-- name: ListRecurringRules :many
+SELECT id, user_id, merchant_norm, amount_paise, type, cadence, next_due_date, active, category_id, snoozed_until, cancelled_at, created_at, updated_at FROM recurring_rules
+WHERE user_id = $1
+ORDER BY next_due_date ASC, created_at ASC
+`
+
+func (q *Queries) ListRecurringRules(ctx context.Context, userID pgtype.UUID) ([]RecurringRule, error) {
+	rows, err := q.db.Query(ctx, listRecurringRules, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RecurringRule
+	for rows.Next() {
+		var i RecurringRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.MerchantNorm,
+			&i.AmountPaise,
+			&i.Type,
+			&i.Cadence,
+			&i.NextDueDate,
+			&i.Active,
+			&i.CategoryID,
+			&i.SnoozedUntil,
+			&i.CancelledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopExpenseCategories = `-- name: ListTopExpenseCategories :many
+SELECT
+    COALESCE(categories.name, 'Uncategorised') AS category_name,
+    COALESCE(categories.icon, '') AS category_icon,
+    COALESCE(SUM(transactions.amount_paise), 0)::BIGINT AS total_paise
+FROM transactions
+LEFT JOIN categories ON categories.id = transactions.category_id
+WHERE transactions.user_id = $1
+    AND transactions.date >= $2
+    AND transactions.date < $3
+    AND transactions.type = 'EXPENSE'
+GROUP BY COALESCE(categories.name, 'Uncategorised'), COALESCE(categories.icon, '')
+ORDER BY total_paise DESC, category_name ASC
+LIMIT $4
+`
+
+type ListTopExpenseCategoriesParams struct {
+	UserID     pgtype.UUID        `json:"user_id"`
+	StartDate  pgtype.Timestamptz `json:"start_date"`
+	EndDate    pgtype.Timestamptz `json:"end_date"`
+	LimitCount int32              `json:"limit_count"`
+}
+
+type ListTopExpenseCategoriesRow struct {
+	CategoryName string `json:"category_name"`
+	CategoryIcon string `json:"category_icon"`
+	TotalPaise   int64  `json:"total_paise"`
+}
+
+func (q *Queries) ListTopExpenseCategories(ctx context.Context, arg ListTopExpenseCategoriesParams) ([]ListTopExpenseCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, listTopExpenseCategories,
+		arg.UserID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopExpenseCategoriesRow
+	for rows.Next() {
+		var i ListTopExpenseCategoriesRow
+		if err := rows.Scan(&i.CategoryName, &i.CategoryIcon, &i.TotalPaise); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT id, user_id, amount_paise, description, merchant_raw, merchant_norm, date, type, status, provenance, category_id, tags, payment_method, upi_id, upi_ref, bank_rrn, is_recurring, recurring_id, receipt_url, receipt_id, import_batch_id, created_at, updated_at FROM transactions
 WHERE user_id = $1
-ORDER BY date DESC
-LIMIT $2 OFFSET $3
+    AND ($2::TEXT IS NULL OR type = $2)
+    AND ($3::UUID IS NULL OR category_id = $3)
+    AND ($4::TIMESTAMPTZ IS NULL OR date >= $4)
+    AND ($5::TIMESTAMPTZ IS NULL OR date < $5)
+    AND (
+        $6::TIMESTAMPTZ IS NULL
+        OR date < $6
+        OR (date = $6 AND id < $7)
+    )
+ORDER BY date DESC, id DESC
+LIMIT $8
 `
 
 type ListTransactionsParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Limit  int32       `json:"limit"`
-	Offset int32       `json:"offset"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	Type       pgtype.Text        `json:"type"`
+	CategoryID pgtype.UUID        `json:"category_id"`
+	StartDate  pgtype.Timestamptz `json:"start_date"`
+	EndDate    pgtype.Timestamptz `json:"end_date"`
+	CursorDate pgtype.Timestamptz `json:"cursor_date"`
+	CursorID   pgtype.UUID        `json:"cursor_id"`
+	LimitCount int32              `json:"limit_count"`
 }
 
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error) {
-	rows, err := q.db.Query(ctx, listTransactions, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listTransactions,
+		arg.UserID,
+		arg.Type,
+		arg.CategoryID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.CursorDate,
+		arg.CursorID,
+		arg.LimitCount,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -899,7 +1429,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 }
 
 const listUpcomingRecurringRules = `-- name: ListUpcomingRecurringRules :many
-SELECT id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at FROM recurring_rules
+SELECT id, user_id, merchant_norm, amount_paise, type, cadence, next_due_date, active, category_id, snoozed_until, cancelled_at, created_at, updated_at FROM recurring_rules
 WHERE user_id = $1 AND active = true AND cancelled_at IS NULL AND next_due_date <= $2
 `
 
@@ -922,12 +1452,15 @@ func (q *Queries) ListUpcomingRecurringRules(ctx context.Context, arg ListUpcomi
 			&i.UserID,
 			&i.MerchantNorm,
 			&i.AmountPaise,
+			&i.Type,
 			&i.Cadence,
 			&i.NextDueDate,
 			&i.Active,
+			&i.CategoryID,
 			&i.SnoozedUntil,
 			&i.CancelledAt,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -960,6 +1493,108 @@ func (q *Queries) MarkTransactionsPosted(ctx context.Context, arg MarkTransactio
 		arg.Type,
 	)
 	return err
+}
+
+const sumBudgetSpentAllCategories = `-- name: SumBudgetSpentAllCategories :one
+SELECT COALESCE(SUM(amount_paise), 0)::BIGINT AS spent_paise
+FROM transactions
+WHERE user_id = $1
+    AND type = 'EXPENSE'
+    AND date >= $2
+    AND date < $3
+`
+
+type SumBudgetSpentAllCategoriesParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	StartDate pgtype.Timestamptz `json:"start_date"`
+	EndDate   pgtype.Timestamptz `json:"end_date"`
+}
+
+func (q *Queries) SumBudgetSpentAllCategories(ctx context.Context, arg SumBudgetSpentAllCategoriesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumBudgetSpentAllCategories, arg.UserID, arg.StartDate, arg.EndDate)
+	var spent_paise int64
+	err := row.Scan(&spent_paise)
+	return spent_paise, err
+}
+
+const sumBudgetSpentByCategories = `-- name: SumBudgetSpentByCategories :one
+SELECT COALESCE(SUM(amount_paise), 0)::BIGINT AS spent_paise
+FROM transactions
+WHERE user_id = $1
+    AND type = 'EXPENSE'
+    AND date >= $2
+    AND date < $3
+    AND category_id::TEXT = ANY($4::TEXT[])
+`
+
+type SumBudgetSpentByCategoriesParams struct {
+	UserID      pgtype.UUID        `json:"user_id"`
+	StartDate   pgtype.Timestamptz `json:"start_date"`
+	EndDate     pgtype.Timestamptz `json:"end_date"`
+	CategoryIds []string           `json:"category_ids"`
+}
+
+func (q *Queries) SumBudgetSpentByCategories(ctx context.Context, arg SumBudgetSpentByCategoriesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumBudgetSpentByCategories,
+		arg.UserID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.CategoryIds,
+	)
+	var spent_paise int64
+	err := row.Scan(&spent_paise)
+	return spent_paise, err
+}
+
+const updateBudget = `-- name: UpdateBudget :one
+UPDATE budgets
+SET name = COALESCE($1, name),
+    amount_paise = COALESCE($2, amount_paise),
+    period = COALESCE($3, period),
+    start_date = COALESCE($4, start_date),
+    end_date = COALESCE($5, end_date),
+    categories = COALESCE($6, categories),
+    updated_at = NOW()
+WHERE id = $7 AND user_id = $8
+RETURNING id, user_id, name, amount_paise, period, start_date, end_date, categories, created_at, updated_at
+`
+
+type UpdateBudgetParams struct {
+	Name        pgtype.Text        `json:"name"`
+	AmountPaise pgtype.Int8        `json:"amount_paise"`
+	Period      pgtype.Text        `json:"period"`
+	StartDate   pgtype.Timestamptz `json:"start_date"`
+	EndDate     pgtype.Timestamptz `json:"end_date"`
+	Categories  pgtype.Text        `json:"categories"`
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+}
+
+func (q *Queries) UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Budget, error) {
+	row := q.db.QueryRow(ctx, updateBudget,
+		arg.Name,
+		arg.AmountPaise,
+		arg.Period,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Categories,
+		arg.ID,
+		arg.UserID,
+	)
+	var i Budget
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.AmountPaise,
+		&i.Period,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Categories,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateGoal = `-- name: UpdateGoal :one
@@ -1062,6 +1697,49 @@ func (q *Queries) UpdateGoalCurrentAmount(ctx context.Context, arg UpdateGoalCur
 	return i, err
 }
 
+const updateImportBatchCounts = `-- name: UpdateImportBatchCounts :one
+UPDATE import_batches
+SET parsed_count = $1,
+    created_count = $2,
+    matched_count = $3,
+    failed_count = $4
+WHERE id = $5 AND user_id = $6
+RETURNING id, user_id, file_hash, bank_format, parsed_count, created_count, matched_count, failed_count, created_at
+`
+
+type UpdateImportBatchCountsParams struct {
+	ParsedCount  int32       `json:"parsed_count"`
+	CreatedCount int32       `json:"created_count"`
+	MatchedCount int32       `json:"matched_count"`
+	FailedCount  int32       `json:"failed_count"`
+	ID           pgtype.UUID `json:"id"`
+	UserID       pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) UpdateImportBatchCounts(ctx context.Context, arg UpdateImportBatchCountsParams) (ImportBatch, error) {
+	row := q.db.QueryRow(ctx, updateImportBatchCounts,
+		arg.ParsedCount,
+		arg.CreatedCount,
+		arg.MatchedCount,
+		arg.FailedCount,
+		arg.ID,
+		arg.UserID,
+	)
+	var i ImportBatch
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FileHash,
+		&i.BankFormat,
+		&i.ParsedCount,
+		&i.CreatedCount,
+		&i.MatchedCount,
+		&i.FailedCount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const updateReceipt = `-- name: UpdateReceipt :one
 UPDATE receipts
 SET reimbursable = COALESCE($1, reimbursable),
@@ -1109,14 +1787,27 @@ func (q *Queries) UpdateReceipt(ctx context.Context, arg UpdateReceiptParams) (R
 
 const updateRecurringRule = `-- name: UpdateRecurringRule :one
 UPDATE recurring_rules
-SET snoozed_until = COALESCE($1, snoozed_until),
-    cancelled_at = COALESCE($2, cancelled_at),
-    active = COALESCE($3, active)
-WHERE id = $4 AND user_id = $5
-RETURNING id, user_id, merchant_norm, amount_paise, cadence, next_due_date, active, snoozed_until, cancelled_at, created_at
+SET merchant_norm = COALESCE($1, merchant_norm),
+    amount_paise = COALESCE($2, amount_paise),
+    type = COALESCE($3, type),
+    cadence = COALESCE($4, cadence),
+    next_due_date = COALESCE($5, next_due_date),
+    category_id = COALESCE($6, category_id),
+    snoozed_until = COALESCE($7, snoozed_until),
+    cancelled_at = COALESCE($8, cancelled_at),
+    active = COALESCE($9, active),
+    updated_at = NOW()
+WHERE id = $10 AND user_id = $11
+RETURNING id, user_id, merchant_norm, amount_paise, type, cadence, next_due_date, active, category_id, snoozed_until, cancelled_at, created_at, updated_at
 `
 
 type UpdateRecurringRuleParams struct {
+	MerchantNorm pgtype.Text        `json:"merchant_norm"`
+	AmountPaise  pgtype.Int8        `json:"amount_paise"`
+	Type         pgtype.Text        `json:"type"`
+	Cadence      pgtype.Text        `json:"cadence"`
+	NextDueDate  pgtype.Timestamptz `json:"next_due_date"`
+	CategoryID   pgtype.UUID        `json:"category_id"`
 	SnoozedUntil pgtype.Timestamptz `json:"snoozed_until"`
 	CancelledAt  pgtype.Timestamptz `json:"cancelled_at"`
 	Active       pgtype.Bool        `json:"active"`
@@ -1126,6 +1817,12 @@ type UpdateRecurringRuleParams struct {
 
 func (q *Queries) UpdateRecurringRule(ctx context.Context, arg UpdateRecurringRuleParams) (RecurringRule, error) {
 	row := q.db.QueryRow(ctx, updateRecurringRule,
+		arg.MerchantNorm,
+		arg.AmountPaise,
+		arg.Type,
+		arg.Cadence,
+		arg.NextDueDate,
+		arg.CategoryID,
 		arg.SnoozedUntil,
 		arg.CancelledAt,
 		arg.Active,
@@ -1138,12 +1835,15 @@ func (q *Queries) UpdateRecurringRule(ctx context.Context, arg UpdateRecurringRu
 		&i.UserID,
 		&i.MerchantNorm,
 		&i.AmountPaise,
+		&i.Type,
 		&i.Cadence,
 		&i.NextDueDate,
 		&i.Active,
+		&i.CategoryID,
 		&i.SnoozedUntil,
 		&i.CancelledAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -1234,19 +1934,36 @@ func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionPa
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET email = COALESCE($1, email)
-WHERE id = $2
-RETURNING id, email, created_at
+SET email = COALESCE($1, email),
+    name = COALESCE($2, name),
+    avatar_url = COALESCE($3, avatar_url),
+    updated_at = NOW()
+WHERE id = $4
+RETURNING id, email, name, avatar_url, created_at, updated_at
 `
 
 type UpdateUserParams struct {
-	Email pgtype.Text `json:"email"`
-	ID    pgtype.UUID `json:"id"`
+	Email     pgtype.Text `json:"email"`
+	Name      pgtype.Text `json:"name"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+	ID        pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUser, arg.Email, arg.ID)
+	row := q.db.QueryRow(ctx, updateUser,
+		arg.Email,
+		arg.Name,
+		arg.AvatarUrl,
+		arg.ID,
+	)
 	var i User
-	err := row.Scan(&i.ID, &i.Email, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
