@@ -3,16 +3,19 @@ syntax = "proto3";
 package vasoli.v1;
 option go_package = "vasoli-backend/internal/gen/vasoli/v1";
 
+import "google/protobuf/timestamp.proto";
+
 service ImportService {
   rpc ImportStatement(ImportStatementRequest) returns (ImportStatementResponse);
+  rpc PreviewStatement(PreviewStatementRequest) returns (PreviewStatementResponse);
+  rpc CommitStatementImport(CommitStatementImportRequest) returns (CommitStatementImportResponse);
 }
 
 message ImportStatementRequest {
   bytes file = 1;
-  string format = 2; // e.g., "generic_csv", "hdfc_statement"
+  string format = 2;
   optional string mapping_json = 3;
 }
-
 message ImportStatementResponse {
   string batch_id = 1;
   int32 parsed_count = 2;
@@ -21,9 +24,52 @@ message ImportStatementResponse {
   int32 failed_count = 5;
   repeated FailedImportRow failed_rows = 6;
 }
+message FailedImportRow { int32 row_number = 1; string raw = 2; string reason = 3; }
 
-message FailedImportRow {
+message PreviewStatementRequest {
+  string account_id = 1;
+  string file_name = 2;
+  bytes file = 3;
+  string format = 4;
+  optional int64 opening_balance_paise = 5;
+  optional int64 closing_balance_paise = 6;
+  optional string mapping_json = 7;
+}
+message NormalizedStatementRow {
   int32 row_number = 1;
-  string raw = 2;
-  string reason = 3;
+  int64 amount_paise = 2;
+  string description = 3;
+  google.protobuf.Timestamp date = 4;
+  string type = 5;
+  string merchant = 6;
+  string payment_method = 7;
+  string bank_reference = 8;
+}
+message RejectedStatementRow { int32 row_number = 1; string reason = 2; }
+message DuplicateStatementRow { int32 row_number = 1; string existing_transaction_id = 2; }
+message ImportReconciliation {
+  optional int64 opening_balance_paise = 1;
+  optional int64 closing_balance_paise = 2;
+  int64 calculated_closing_balance_paise = 3;
+  optional int64 difference_paise = 4;
+  bool matches = 5;
+}
+message PreviewStatementResponse {
+  string preview_token = 1;
+  repeated NormalizedStatementRow rows = 2;
+  repeated RejectedStatementRow rejected = 3;
+  repeated DuplicateStatementRow duplicates = 4;
+  ImportReconciliation reconciliation = 5;
+  int64 expires_at_unix = 6;
+}
+message CommitStatementImportRequest {
+  string preview_token = 1;
+  string idempotency_key = 2;
+  repeated int32 skip_row_numbers = 3;
+}
+message CommitStatementImportResponse {
+  string batch_id = 1;
+  int32 created_count = 2;
+  int32 duplicate_count = 3;
+  int32 skipped_count = 4;
 }

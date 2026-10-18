@@ -9,9 +9,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  const bypassAuth = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
+
+  if (!user && !bypassAuth) {
     redirect("/auth/signin");
   }
 
-  return <AppShell userEmail={user.email}>{children}</AppShell>;
+  return <AppShell userEmail={user?.email || "demo@vasoli.app"}>{children}</AppShell>;
 }

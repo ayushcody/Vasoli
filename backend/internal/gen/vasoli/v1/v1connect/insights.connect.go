@@ -41,6 +41,15 @@ const (
 	// InsightsServiceGetHealthScoreProcedure is the fully-qualified name of the InsightsService's
 	// GetHealthScore RPC.
 	InsightsServiceGetHealthScoreProcedure = "/vasoli.v1.InsightsService/GetHealthScore"
+	// InsightsServiceGetSpendingAnalyticsProcedure is the fully-qualified name of the InsightsService's
+	// GetSpendingAnalytics RPC.
+	InsightsServiceGetSpendingAnalyticsProcedure = "/vasoli.v1.InsightsService/GetSpendingAnalytics"
+	// InsightsServiceGetMerchantInsightsProcedure is the fully-qualified name of the InsightsService's
+	// GetMerchantInsights RPC.
+	InsightsServiceGetMerchantInsightsProcedure = "/vasoli.v1.InsightsService/GetMerchantInsights"
+	// InsightsServiceGetEmergencyFundProgressProcedure is the fully-qualified name of the
+	// InsightsService's GetEmergencyFundProgress RPC.
+	InsightsServiceGetEmergencyFundProgressProcedure = "/vasoli.v1.InsightsService/GetEmergencyFundProgress"
 )
 
 // InsightsServiceClient is a client for the vasoli.v1.InsightsService service.
@@ -48,6 +57,9 @@ type InsightsServiceClient interface {
 	GetSummary(context.Context, *connect.Request[v1.GetSummaryRequest]) (*connect.Response[v1.GetSummaryResponse], error)
 	GetZine(context.Context, *connect.Request[v1.GetZineRequest]) (*connect.Response[v1.GetZineResponse], error)
 	GetHealthScore(context.Context, *connect.Request[v1.GetHealthScoreRequest]) (*connect.Response[v1.GetHealthScoreResponse], error)
+	GetSpendingAnalytics(context.Context, *connect.Request[v1.GetSpendingAnalyticsRequest]) (*connect.Response[v1.GetSpendingAnalyticsResponse], error)
+	GetMerchantInsights(context.Context, *connect.Request[v1.GetMerchantInsightsRequest]) (*connect.Response[v1.GetMerchantInsightsResponse], error)
+	GetEmergencyFundProgress(context.Context, *connect.Request[v1.GetEmergencyFundProgressRequest]) (*connect.Response[v1.GetEmergencyFundProgressResponse], error)
 }
 
 // NewInsightsServiceClient constructs a client for the vasoli.v1.InsightsService service. By
@@ -79,14 +91,35 @@ func NewInsightsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(insightsServiceMethods.ByName("GetHealthScore")),
 			connect.WithClientOptions(opts...),
 		),
+		getSpendingAnalytics: connect.NewClient[v1.GetSpendingAnalyticsRequest, v1.GetSpendingAnalyticsResponse](
+			httpClient,
+			baseURL+InsightsServiceGetSpendingAnalyticsProcedure,
+			connect.WithSchema(insightsServiceMethods.ByName("GetSpendingAnalytics")),
+			connect.WithClientOptions(opts...),
+		),
+		getMerchantInsights: connect.NewClient[v1.GetMerchantInsightsRequest, v1.GetMerchantInsightsResponse](
+			httpClient,
+			baseURL+InsightsServiceGetMerchantInsightsProcedure,
+			connect.WithSchema(insightsServiceMethods.ByName("GetMerchantInsights")),
+			connect.WithClientOptions(opts...),
+		),
+		getEmergencyFundProgress: connect.NewClient[v1.GetEmergencyFundProgressRequest, v1.GetEmergencyFundProgressResponse](
+			httpClient,
+			baseURL+InsightsServiceGetEmergencyFundProgressProcedure,
+			connect.WithSchema(insightsServiceMethods.ByName("GetEmergencyFundProgress")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // insightsServiceClient implements InsightsServiceClient.
 type insightsServiceClient struct {
-	getSummary     *connect.Client[v1.GetSummaryRequest, v1.GetSummaryResponse]
-	getZine        *connect.Client[v1.GetZineRequest, v1.GetZineResponse]
-	getHealthScore *connect.Client[v1.GetHealthScoreRequest, v1.GetHealthScoreResponse]
+	getSummary               *connect.Client[v1.GetSummaryRequest, v1.GetSummaryResponse]
+	getZine                  *connect.Client[v1.GetZineRequest, v1.GetZineResponse]
+	getHealthScore           *connect.Client[v1.GetHealthScoreRequest, v1.GetHealthScoreResponse]
+	getSpendingAnalytics     *connect.Client[v1.GetSpendingAnalyticsRequest, v1.GetSpendingAnalyticsResponse]
+	getMerchantInsights      *connect.Client[v1.GetMerchantInsightsRequest, v1.GetMerchantInsightsResponse]
+	getEmergencyFundProgress *connect.Client[v1.GetEmergencyFundProgressRequest, v1.GetEmergencyFundProgressResponse]
 }
 
 // GetSummary calls vasoli.v1.InsightsService.GetSummary.
@@ -104,11 +137,29 @@ func (c *insightsServiceClient) GetHealthScore(ctx context.Context, req *connect
 	return c.getHealthScore.CallUnary(ctx, req)
 }
 
+// GetSpendingAnalytics calls vasoli.v1.InsightsService.GetSpendingAnalytics.
+func (c *insightsServiceClient) GetSpendingAnalytics(ctx context.Context, req *connect.Request[v1.GetSpendingAnalyticsRequest]) (*connect.Response[v1.GetSpendingAnalyticsResponse], error) {
+	return c.getSpendingAnalytics.CallUnary(ctx, req)
+}
+
+// GetMerchantInsights calls vasoli.v1.InsightsService.GetMerchantInsights.
+func (c *insightsServiceClient) GetMerchantInsights(ctx context.Context, req *connect.Request[v1.GetMerchantInsightsRequest]) (*connect.Response[v1.GetMerchantInsightsResponse], error) {
+	return c.getMerchantInsights.CallUnary(ctx, req)
+}
+
+// GetEmergencyFundProgress calls vasoli.v1.InsightsService.GetEmergencyFundProgress.
+func (c *insightsServiceClient) GetEmergencyFundProgress(ctx context.Context, req *connect.Request[v1.GetEmergencyFundProgressRequest]) (*connect.Response[v1.GetEmergencyFundProgressResponse], error) {
+	return c.getEmergencyFundProgress.CallUnary(ctx, req)
+}
+
 // InsightsServiceHandler is an implementation of the vasoli.v1.InsightsService service.
 type InsightsServiceHandler interface {
 	GetSummary(context.Context, *connect.Request[v1.GetSummaryRequest]) (*connect.Response[v1.GetSummaryResponse], error)
 	GetZine(context.Context, *connect.Request[v1.GetZineRequest]) (*connect.Response[v1.GetZineResponse], error)
 	GetHealthScore(context.Context, *connect.Request[v1.GetHealthScoreRequest]) (*connect.Response[v1.GetHealthScoreResponse], error)
+	GetSpendingAnalytics(context.Context, *connect.Request[v1.GetSpendingAnalyticsRequest]) (*connect.Response[v1.GetSpendingAnalyticsResponse], error)
+	GetMerchantInsights(context.Context, *connect.Request[v1.GetMerchantInsightsRequest]) (*connect.Response[v1.GetMerchantInsightsResponse], error)
+	GetEmergencyFundProgress(context.Context, *connect.Request[v1.GetEmergencyFundProgressRequest]) (*connect.Response[v1.GetEmergencyFundProgressResponse], error)
 }
 
 // NewInsightsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -136,6 +187,24 @@ func NewInsightsServiceHandler(svc InsightsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(insightsServiceMethods.ByName("GetHealthScore")),
 		connect.WithHandlerOptions(opts...),
 	)
+	insightsServiceGetSpendingAnalyticsHandler := connect.NewUnaryHandler(
+		InsightsServiceGetSpendingAnalyticsProcedure,
+		svc.GetSpendingAnalytics,
+		connect.WithSchema(insightsServiceMethods.ByName("GetSpendingAnalytics")),
+		connect.WithHandlerOptions(opts...),
+	)
+	insightsServiceGetMerchantInsightsHandler := connect.NewUnaryHandler(
+		InsightsServiceGetMerchantInsightsProcedure,
+		svc.GetMerchantInsights,
+		connect.WithSchema(insightsServiceMethods.ByName("GetMerchantInsights")),
+		connect.WithHandlerOptions(opts...),
+	)
+	insightsServiceGetEmergencyFundProgressHandler := connect.NewUnaryHandler(
+		InsightsServiceGetEmergencyFundProgressProcedure,
+		svc.GetEmergencyFundProgress,
+		connect.WithSchema(insightsServiceMethods.ByName("GetEmergencyFundProgress")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vasoli.v1.InsightsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InsightsServiceGetSummaryProcedure:
@@ -144,6 +213,12 @@ func NewInsightsServiceHandler(svc InsightsServiceHandler, opts ...connect.Handl
 			insightsServiceGetZineHandler.ServeHTTP(w, r)
 		case InsightsServiceGetHealthScoreProcedure:
 			insightsServiceGetHealthScoreHandler.ServeHTTP(w, r)
+		case InsightsServiceGetSpendingAnalyticsProcedure:
+			insightsServiceGetSpendingAnalyticsHandler.ServeHTTP(w, r)
+		case InsightsServiceGetMerchantInsightsProcedure:
+			insightsServiceGetMerchantInsightsHandler.ServeHTTP(w, r)
+		case InsightsServiceGetEmergencyFundProgressProcedure:
+			insightsServiceGetEmergencyFundProgressHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -163,4 +238,16 @@ func (UnimplementedInsightsServiceHandler) GetZine(context.Context, *connect.Req
 
 func (UnimplementedInsightsServiceHandler) GetHealthScore(context.Context, *connect.Request[v1.GetHealthScoreRequest]) (*connect.Response[v1.GetHealthScoreResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.InsightsService.GetHealthScore is not implemented"))
+}
+
+func (UnimplementedInsightsServiceHandler) GetSpendingAnalytics(context.Context, *connect.Request[v1.GetSpendingAnalyticsRequest]) (*connect.Response[v1.GetSpendingAnalyticsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.InsightsService.GetSpendingAnalytics is not implemented"))
+}
+
+func (UnimplementedInsightsServiceHandler) GetMerchantInsights(context.Context, *connect.Request[v1.GetMerchantInsightsRequest]) (*connect.Response[v1.GetMerchantInsightsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.InsightsService.GetMerchantInsights is not implemented"))
+}
+
+func (UnimplementedInsightsServiceHandler) GetEmergencyFundProgress(context.Context, *connect.Request[v1.GetEmergencyFundProgressRequest]) (*connect.Response[v1.GetEmergencyFundProgressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.InsightsService.GetEmergencyFundProgress is not implemented"))
 }

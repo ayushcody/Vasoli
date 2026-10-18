@@ -5,7 +5,8 @@ export interface ColumnMapping {
     description: string;
     debit?: string;
     credit?: string;
-    amount?: string; // single amount column (positive = credit, negative = debit)
+    amount?: string; // single amount column
+    type?: string;   // 'DEBIT' or 'CREDIT' or 'EXPENSE' or 'INCOME' if amount is unsigned
 }
 
 /**
@@ -24,18 +25,29 @@ export function parseGenericCSV(
     if (lines.length < 2) return [];
 
     // Parse header to find column indices
-    const header = parseCSVLine(lines[0]);
-    const indices: Record<string, number> = {};
+    let headerIdx = -1;
+    let indices: Record<string, number> = {};
+    let header: string[] = [];
 
-    for (const [key, colName] of Object.entries(mapping)) {
-        if (!colName) continue;
-        const idx = header.findIndex(
-            (h) => h.trim().toLowerCase() === colName.toLowerCase()
-        );
-        if (idx >= 0) indices[key] = idx;
+    for (let i = 0; i < Math.min(lines.length, 20); i++) {
+        const h = parseCSVLine(lines[i]);
+        const tempIndices: Record<string, number> = {};
+        for (const [key, colName] of Object.entries(mapping)) {
+            if (!colName) continue;
+            const idx = h.findIndex(
+                (col) => col.trim().toLowerCase() === colName.toLowerCase()
+            );
+            if (idx >= 0) tempIndices[key] = idx;
+        }
+        if (tempIndices.date !== undefined && tempIndices.description !== undefined) {
+            headerIdx = i;
+            indices = tempIndices;
+            header = h;
+            break;
+        }
     }
 
-    if (indices.date === undefined || indices.description === undefined) {
+    if (headerIdx === -1 || indices.date === undefined || indices.description === undefined) {
         throw new Error(
             "Could not find date or description columns in CSV header."
         );
@@ -43,7 +55,7 @@ export function parseGenericCSV(
 
     const results: ParsedTransaction[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = headerIdx + 1; i < lines.length; i++) {
         const cols = parseCSVLine(lines[i]);
         if (cols.length < 2) continue;
 
@@ -60,7 +72,12 @@ export function parseGenericCSV(
         if (indices.amount !== undefined) {
             const val = parseAmount(cols[indices.amount]);
             amount = Math.abs(val);
-            type = val >= 0 ? "INCOME" : "EXPENSE";
+            if (indices.type !== undefined) {
+                const typeStr = cols[indices.type]?.toUpperCase() || "";
+                type = (typeStr.includes("CREDIT") || typeStr.includes("INCOME")) ? "INCOME" : "EXPENSE";
+            } else {
+                type = val >= 0 ? "INCOME" : "EXPENSE";
+            }
         } else {
             const debit = indices.debit !== undefined ? parseAmount(cols[indices.debit]) : 0;
             const credit = indices.credit !== undefined ? parseAmount(cols[indices.credit]) : 0;

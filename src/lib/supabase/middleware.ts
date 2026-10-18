@@ -1,6 +1,29 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function redirectOnRequestHost(request: NextRequest, response: NextResponse, pathname: string) {
+    const target = request.nextUrl.clone();
+    target.pathname = pathname;
+    target.search = "";
+
+    // Next dev can canonicalize loopback hosts (127.0.0.1 ↔ localhost). Keep
+    // redirects on the incoming loopback host so Supabase cookies stay scoped
+    // to the same origin. In production, accept only Next's trusted URL host.
+    if (process.env.NODE_ENV !== "production") {
+        const incomingHost = request.headers.get("host");
+        if (incomingHost) {
+            const hostname = incomingHost.split(":")[0].replace(/^\[|\]$/g, "");
+            const requestIsLoopback = ["localhost", "127.0.0.1", "::1"].includes(request.nextUrl.hostname);
+            const incomingIsLoopback = ["localhost", "127.0.0.1", "::1"].includes(hostname);
+            if (requestIsLoopback && incomingIsLoopback) target.host = incomingHost;
+        }
+    }
+
+    const redirect = NextResponse.redirect(target);
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
+}
+
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
         request,
@@ -44,14 +67,17 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Protect /app/* routes — redirect to signin if unauthenticated
+    const bypassAuth = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
     if (
+        !bypassAuth &&
         !user &&
         request.nextUrl.pathname.startsWith("/app")
     ) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/auth/signin";
+        const redirect = redirectOnRequestHost(request, supabaseResponse, "/auth/signin");
+        const url = new URL(redirect.headers.get("location")!);
         url.searchParams.set("redirectedFrom", request.nextUrl.pathname);
-        return NextResponse.redirect(url);
+        redirect.headers.set("location", url.toString());
+        return redirect;
     }
 
     // If user is authenticated and tries to access auth pages, redirect to dashboard
@@ -59,9 +85,7 @@ export async function updateSession(request: NextRequest) {
         user &&
         request.nextUrl.pathname.startsWith("/auth")
     ) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/app/dashboard";
-        return NextResponse.redirect(url);
+        return redirectOnRequestHost(request, supabaseResponse, "/app/dashboard");
     }
 
     return supabaseResponse;

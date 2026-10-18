@@ -3,19 +3,18 @@ package api
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/csv"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vasoli-backend/internal/db"
 	pb "vasoli-backend/internal/gen/vasoli/v1"
@@ -23,7 +22,8 @@ import (
 )
 
 type ImportService struct {
-	DB *db.Queries
+	DB   *db.Queries
+	Pool *pgxpool.Pool
 }
 
 type genericCSVMapping struct {
@@ -32,6 +32,7 @@ type genericCSVMapping struct {
 	Debit       string `json:"debit"`
 	Credit      string `json:"credit"`
 	Amount      string `json:"amount"`
+	Type        string `json:"type"`
 }
 
 type parsedImportRow struct {
@@ -40,121 +41,66 @@ type parsedImportRow struct {
 	Input     transactionCreateInput
 }
 
+const (
+	maxImportFileBytes = 10 << 20
+	maxImportCSVRows   = 50_000
+)
+
 func (s *ImportService) ImportStatement(ctx context.Context, req *connect.Request[pb.ImportStatementRequest]) (*connect.Response[pb.ImportStatementResponse], error) {
-	userUUID, err := authenticatedUserUUID(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
-	if len(req.Msg.File) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file is required"))
-	}
-
-	hash := sha256.Sum256(req.Msg.File)
-	hashStr := hex.EncodeToString(hash[:])
-
-	batch, err := s.DB.CreateImportBatch(ctx, db.CreateImportBatchParams{
-		UserID:       userUUID,
-		FileHash:     hashStr,
-		BankFormat:   req.Msg.Format,
-		ParsedCount:  0,
-		CreatedCount: 0,
-		MatchedCount: 0,
-		FailedCount:  0,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeAlreadyExists, err)
-	}
-
-	rows, err := parseImportRows(req.Msg.Format, req.Msg.File, req.Msg.GetMappingJson())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
-	failedRows := make([]*pb.FailedImportRow, 0)
-	var createdCount int32
-	var matchedCount int32
-
-	for _, row := range rows {
-		if _, err := s.DB.FindTransactionDuplicate(ctx, db.FindTransactionDuplicateParams{
-			UserID:      userUUID,
-			Date:        pgtype.Timestamptz{Time: row.Input.Date.UTC(), Valid: true},
-			AmountPaise: row.Input.AmountPaise,
-			Description: row.Input.Description,
-		}); err == nil {
-			matchedCount++
-			continue
-		} else if !errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-
-		row.Input.ImportBatchID = batch.ID
-		row.Input.Provenance = "IMPORT"
-		if _, err := createTransactionRecord(ctx, s.DB, userUUID, row.Input); err != nil {
-			reason := err.Error()
-			var connectErr *connect.Error
-			if errors.As(err, &connectErr) {
-				reason = connectErr.Message()
-			}
-			failedRows = append(failedRows, &pb.FailedImportRow{
-				RowNumber: row.RowNumber,
-				Raw:       row.Raw,
-				Reason:    reason,
-			})
-			continue
-		}
-
-		createdCount++
-	}
-
-	updatedBatch, err := s.DB.UpdateImportBatchCounts(ctx, db.UpdateImportBatchCountsParams{
-		ID:           batch.ID,
-		UserID:       userUUID,
-		ParsedCount:  int32(len(rows)),
-		CreatedCount: createdCount,
-		MatchedCount: matchedCount,
-		FailedCount:  int32(len(failedRows)),
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	return connect.NewResponse(&pb.ImportStatementResponse{
-		BatchId:      UUIDToString(updatedBatch.ID),
-		ParsedCount:  updatedBatch.ParsedCount,
-		CreatedCount: updatedBatch.CreatedCount,
-		MatchedCount: updatedBatch.MatchedCount,
-		FailedCount:  updatedBatch.FailedCount,
-		FailedRows:   failedRows,
-	}), nil
+	return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("legacy statement import is disabled; use PreviewStatement and CommitStatementImport"))
 }
 
 func parseImportRows(format string, file []byte, mappingJSON string) ([]parsedImportRow, error) {
+	if len(file) > maxImportFileBytes {
+		return nil, fmt.Errorf("file exceeds the %d MiB import limit", maxImportFileBytes/(1<<20))
+	}
+	var rows []parsedImportRow
+	var err error
 	switch strings.ToLower(strings.TrimSpace(format)) {
 	case "hdfc", "hdfc_statement":
-		return parseHDFCImportRows(file)
+		rows, err = parseHDFCImportRows(file)
+	case "icici":
+		rows, err = parseGenericImportRows(file, `{"date":"Date","description":"Narration","debit":"Withdrawal","credit":"Deposit"}`)
+	case "sbi":
+		rows, err = parseGenericImportRows(file, `{"date":"Txn Date","description":"Description","debit":"Debit","credit":"Credit"}`)
+	case "axis":
+		rows, err = parseGenericImportRows(file, `{"date":"Tran Date","description":"Particulars","debit":"Debit","credit":"Credit"}`)
+	case "kotak":
+		rows, err = parseGenericImportRows(file, `{"date":"Date","description":"Narration","debit":"Withdrawal","credit":"Deposit"}`)
+	case "upi":
+		rows, err = parseGenericImportRows(file, `{"date":"Date","description":"Description","amount":"Amount","type":"Transaction Type"}`)
 	case "generic", "generic_csv":
-		return parseGenericImportRows(file, mappingJSON)
+		rows, err = parseGenericImportRows(file, mappingJSON)
 	default:
 		return nil, fmt.Errorf("unsupported import format %q", format)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, errors.New("CSV contains no valid transactions")
+	}
+	return rows, nil
 }
 
 func parseHDFCImportRows(file []byte) ([]parsedImportRow, error) {
-	reader := csv.NewReader(bytes.NewReader(file))
-	reader.FieldsPerRecord = -1
-
-	records, err := reader.ReadAll()
+	records, err := readImportCSV(file)
 	if err != nil {
 		return nil, err
 	}
 
 	startLine := 0
+	headerFound := false
 	for index := 0; index < len(records) && index < 20; index++ {
 		lower := strings.ToLower(strings.Join(records[index], ","))
 		if strings.Contains(lower, "date") && strings.Contains(lower, "narration") {
 			startLine = index + 1
+			headerFound = true
 			break
 		}
+	}
+	if !headerFound {
+		return nil, errors.New("HDFC CSV is missing its date or narration header")
 	}
 
 	rows := make([]parsedImportRow, 0)
@@ -209,15 +155,12 @@ func parseHDFCImportRows(file []byte) ([]parsedImportRow, error) {
 }
 
 func parseGenericImportRows(file []byte, mappingJSON string) ([]parsedImportRow, error) {
-	reader := csv.NewReader(bytes.NewReader(file))
-	reader.FieldsPerRecord = -1
-
-	records, err := reader.ReadAll()
+	records, err := readImportCSV(file)
 	if err != nil {
 		return nil, err
 	}
 	if len(records) < 2 {
-		return nil, nil
+		return nil, errors.New("CSV must contain a header and at least one row")
 	}
 
 	mapping := genericCSVMapping{
@@ -231,22 +174,32 @@ func parseGenericImportRows(file []byte, mappingJSON string) ([]parsedImportRow,
 		}
 	}
 
-	headerIndex := columnIndexMap(records[0])
-	dateIndex, ok := headerIndex[strings.ToLower(mapping.Date)]
-	if !ok {
-		return nil, errors.New("generic CSV is missing the date column")
+	var headerIndex map[string]int
+	var startLine int
+	for index := 0; index < len(records) && index < 20; index++ {
+		headerIndex = columnIndexMap(records[index])
+		_, hasDate := headerIndex[strings.ToLower(mapping.Date)]
+		_, hasDesc := headerIndex[strings.ToLower(mapping.Description)]
+		if hasDate && hasDesc {
+			startLine = index + 1
+			break
+		}
 	}
-	descriptionIndex, ok := headerIndex[strings.ToLower(mapping.Description)]
-	if !ok {
-		return nil, errors.New("generic CSV is missing the description column")
+
+	if startLine == 0 {
+		return nil, errors.New("generic CSV is missing the date or description column in header")
 	}
+
+	dateIndex := headerIndex[strings.ToLower(mapping.Date)]
+	descriptionIndex := headerIndex[strings.ToLower(mapping.Description)]
 
 	amountIndex := findOptionalColumn(headerIndex, mapping.Amount)
 	debitIndex := findOptionalColumn(headerIndex, mapping.Debit)
 	creditIndex := findOptionalColumn(headerIndex, mapping.Credit)
+	typeIndex := findOptionalColumn(headerIndex, mapping.Type)
 
 	rows := make([]parsedImportRow, 0)
-	for index := 1; index < len(records); index++ {
+	for index := startLine; index < len(records); index++ {
 		record := records[index]
 		rawDate := recordValue(record, dateIndex)
 		rawDescription := recordValue(record, descriptionIndex)
@@ -266,7 +219,14 @@ func parseGenericImportRows(file []byte, mappingJSON string) ([]parsedImportRow,
 			if amount == 0 {
 				continue
 			}
-			if amount > 0 {
+			if typeIndex >= 0 {
+				typeStr := strings.ToUpper(recordValue(record, typeIndex))
+				if strings.Contains(typeStr, "CREDIT") || strings.Contains(typeStr, "INCOME") {
+					transactionType = "INCOME"
+				} else {
+					transactionType = "EXPENSE"
+				}
+			} else if amount > 0 {
 				transactionType = "INCOME"
 			}
 			amountPaise = absInt64(amount)
@@ -307,6 +267,30 @@ func parseGenericImportRows(file []byte, mappingJSON string) ([]parsedImportRow,
 	return rows, nil
 }
 
+func readImportCSV(file []byte) ([][]string, error) {
+	if len(file) > maxImportFileBytes {
+		return nil, fmt.Errorf("file exceeds the %d MiB import limit", maxImportFileBytes/(1<<20))
+	}
+
+	reader := csv.NewReader(bytes.NewReader(file))
+	reader.FieldsPerRecord = -1
+	maxRecords := maxImportCSVRows + 20 // allow preamble rows before a bank's header
+	records := make([][]string, 0, min(maxRecords, 1024))
+	for {
+		record, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			return records, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(records) >= maxRecords {
+			return nil, fmt.Errorf("file exceeds the %d row import limit", maxImportCSVRows)
+		}
+		records = append(records, record)
+	}
+}
+
 func columnIndexMap(header []string) map[string]int {
 	indices := make(map[string]int, len(header))
 	for index, column := range header {
@@ -334,29 +318,92 @@ func recordValue(record []string, index int) string {
 }
 
 func parseDecimalAmount(value string) int64 {
-	cleaned := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(value, "₹", ""), ",", ""), " ", "")
-	if cleaned == "" {
+	amount, ok := parseAmountPaise(value, false)
+	if !ok {
 		return 0
 	}
-	parsed, err := strconv.ParseFloat(cleaned, 64)
-	if err != nil {
-		return 0
-	}
-	return int64(parsed * 100)
+	return amount
 }
 
 func parseSignedDecimalAmount(value string) int64 {
+	amount, ok := parseAmountPaise(value, true)
+	if !ok {
+		return 0
+	}
+	return amount
+}
+
+func parseAmountPaise(value string, allowNegative bool) (int64, bool) {
 	cleaned := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(value, "₹", ""), ",", ""), " ", "")
-	cleaned = strings.ReplaceAll(cleaned, "(", "-")
-	cleaned = strings.ReplaceAll(cleaned, ")", "")
-	if cleaned == "" {
-		return 0
+	negative := false
+	if strings.HasPrefix(cleaned, "(") && strings.HasSuffix(cleaned, ")") {
+		if !allowNegative {
+			return 0, false
+		}
+		negative = true
+		cleaned = cleaned[1 : len(cleaned)-1]
 	}
-	parsed, err := strconv.ParseFloat(cleaned, 64)
-	if err != nil {
-		return 0
+	if strings.HasPrefix(cleaned, "-") || strings.HasPrefix(cleaned, "+") {
+		if cleaned[0] == '-' {
+			if !allowNegative || negative {
+				return 0, false
+			}
+			negative = true
+		}
+		cleaned = cleaned[1:]
 	}
-	return int64(parsed * 100)
+	if cleaned == "" || strings.ContainsAny(cleaned, "()+-") {
+		return 0, false
+	}
+	parts := strings.Split(cleaned, ".")
+	if len(parts) > 2 {
+		return 0, false
+	}
+	whole := parts[0]
+	fraction := ""
+	if len(parts) == 2 {
+		fraction = parts[1]
+	}
+	if whole == "" {
+		whole = "0"
+	}
+	if !decimalDigits(whole) || (len(parts) == 2 && (fraction == "" || !decimalDigits(fraction))) || len(fraction) > 2 {
+		return 0, false
+	}
+	if len(fraction) == 1 {
+		fraction += "0"
+	}
+	wholeValue, ok := new(big.Int).SetString(whole, 10)
+	if !ok {
+		return 0, false
+	}
+	wholeValue.Mul(wholeValue, big.NewInt(100))
+	if fraction != "" {
+		fractionValue, ok := new(big.Int).SetString(fraction, 10)
+		if !ok {
+			return 0, false
+		}
+		wholeValue.Add(wholeValue, fractionValue)
+	}
+	if negative {
+		wholeValue.Neg(wholeValue)
+	}
+	if !wholeValue.IsInt64() || wholeValue.Int64() == -1<<63 {
+		return 0, false
+	}
+	return wholeValue.Int64(), true
+}
+
+func decimalDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, digit := range value {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseSlashDate(value string) (time.Time, error) {
@@ -382,8 +429,14 @@ func parseSlashDate(value string) (time.Time, error) {
 	if year < 100 {
 		year += 2000
 	}
-
-	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC), nil
+	if year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31 {
+		return time.Time{}, errors.New("invalid date")
+	}
+	parsed := time.Date(year, time.Month(month), day, 0, 0, 0, 0, indiaLocation)
+	if parsed.Year() != year || int(parsed.Month()) != month || parsed.Day() != day {
+		return time.Time{}, errors.New("invalid date")
+	}
+	return parsed, nil
 }
 
 func parseFlexibleDate(value string) (time.Time, error) {
@@ -392,17 +445,35 @@ func parseFlexibleDate(value string) (time.Time, error) {
 		return time.Time{}, errors.New("invalid date")
 	}
 
+	// First preserve explicitly supplied instants and local date-times. Bank
+	// exports commonly mix date-only rows with timestamp rows in one format.
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05Z07:00", "2006-01-02 15:04Z07:00", "02/01/2006 15:04:05 -0700"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed, nil
+		}
+	}
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02 15:04:05", "2006-01-02 15:04", "02/01/2006 15:04:05", "02/01/2006 15:04"} {
+		if parsed, err := time.ParseInLocation(layout, value, indiaLocation); err == nil {
+			return parsed, nil
+		}
+	}
+
+	if len(value) == len("02/01/06") && (strings.Contains(value, "/") || strings.Contains(value, "-")) {
+		parts := strings.FieldsFunc(value, func(r rune) bool { return r == '/' || r == '-' })
+		if len(parts) == 3 && len(parts[2]) == 2 {
+			return parseSlashDate(value)
+		}
+	}
+
 	layouts := []string{
 		"2006-01-02",
 		"02/01/2006",
-		"02/01/06",
 		"02-01-2006",
-		"02-01-06",
 	}
 	for _, layout := range layouts {
-		parsed, err := time.Parse(layout, value)
+		parsed, err := time.ParseInLocation(layout, value, indiaLocation)
 		if err == nil {
-			return parsed.UTC(), nil
+			return parsed, nil
 		}
 	}
 	return time.Time{}, errors.New("invalid date")

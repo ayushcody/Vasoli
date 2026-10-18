@@ -6,6 +6,8 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 let _genai: GoogleGenAI | null = null;
 
 export function getGenAI(): GoogleGenAI {
+    if (process.env.MARCO_ENABLED !== "true") throw new Error("Marco is disabled.");
+    if (!MARCO_MODEL || !/^gemini-[a-zA-Z0-9.\-]+$/.test(MARCO_MODEL)) throw new Error("Configure an explicit Gemini model before enabling Marco.");
     if (!_genai) {
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
@@ -16,7 +18,19 @@ export function getGenAI(): GoogleGenAI {
     return _genai;
 }
 
-export const MARCO_MODEL = process.env.GEMINI_API_MODEL || "gemini-2.0-flash";
+export const MARCO_MODEL = process.env.GEMINI_API_MODEL?.trim() || "";
+let verifiedModelAt = 0;
+
+// Verify provider availability without sending any financial or chat data.
+export async function verifyMarcoModel() {
+    const client = getGenAI();
+    if (Date.now() - verifiedModelAt < 5 * 60 * 1000) return;
+    const metadata = await client.models.get({ model: MARCO_MODEL });
+    if (!metadata.supportedActions?.includes("generateContent")) {
+        throw new Error("The configured model does not support text generation.");
+    }
+    verifiedModelAt = Date.now();
+}
 
 // Each tool declaration is typed individually then combined
 const dashboardSnapshot: FunctionDeclaration = {
@@ -152,6 +166,46 @@ const syncConfidence: FunctionDeclaration = {
     },
 };
 
+const spendingAnalytics: FunctionDeclaration = {
+    name: "get_spending_analytics",
+    description:
+        "Get insights on spending anomalies, category breakdowns, merchant trends, and potential savings opportunities. Use this when the user asks about money leaks or why their spending changed.",
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            monthYear: {
+                type: Type.STRING,
+                description: "The month to analyze in YYYY-MM format. Defaults to current month.",
+            },
+        },
+    },
+};
+
+const upcomingReminders: FunctionDeclaration = {
+    name: "get_upcoming_reminders",
+    description:
+        "Get the user's pending and snoozed reminders (bills, receipts, warranties, manual reminders). Use this when the user asks what is coming up or what bills they have next.",
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            type: {
+                type: Type.STRING,
+                description: "Optional filter for reminder type.",
+            },
+        },
+    },
+};
+
+const healthScore: FunctionDeclaration = {
+    name: "get_health_score",
+    description:
+        "Get the user's financial health score, component breakdown, and insights. Use this to explain how the health score is calculated or what they can improve.",
+    parameters: {
+        type: Type.OBJECT,
+        properties: {},
+    },
+};
+
 // Tool declarations for Gemini function calling
 export const MARCO_TOOL_DECLARATIONS: FunctionDeclaration[] = [
     dashboardSnapshot,
@@ -161,5 +215,8 @@ export const MARCO_TOOL_DECLARATIONS: FunctionDeclaration[] = [
     goals,
     receiptsLifecycle,
     syncConfidence,
+    spendingAnalytics,
+    upcomingReminders,
+    healthScore,
 ];
 

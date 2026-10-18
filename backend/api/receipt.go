@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"vasoli-backend/internal/db"
@@ -13,7 +14,8 @@ import (
 )
 
 type ReceiptService struct {
-	DB *db.Queries
+	DB   *db.Queries
+	Pool *pgxpool.Pool
 }
 
 func mapReceipt(r db.Receipt) *pb.Receipt {
@@ -83,6 +85,14 @@ func (s *ReceiptService) CreateReceipt(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	// Trigger achievements
+	go func(u pgtype.UUID) {
+		_ = awardAchievementIfEligible(context.Background(), s.DB, u, "FIRST_RECEIPT")
+		if req.Msg.ReturnBy != nil || req.Msg.WarrantyUntil != nil {
+			_ = awardAchievementIfEligible(context.Background(), s.DB, u, "RECEIPT_RESCUER")
+		}
+	}(userUUID)
+
 	return connect.NewResponse(&pb.CreateReceiptResponse{
 		Receipt: mapReceipt(receipt),
 	}), nil
@@ -101,6 +111,11 @@ func (s *ReceiptService) ListReceipts(ctx context.Context, req *connect.Request[
 
 	receipts, err := s.DB.ListReceipts(ctx, userUUID)
 	if err != nil {
+		if isMockMode() {
+			return connect.NewResponse(&pb.ListReceiptsResponse{
+				Receipts: getMockReceipts(),
+			}), nil
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -136,6 +151,11 @@ func (s *ReceiptService) ListExpiring(ctx context.Context, req *connect.Request[
 		ReturnBy: pgtype.Timestamptz{Time: cutoff, Valid: true},
 	})
 	if err != nil {
+		if isMockMode() {
+			return connect.NewResponse(&pb.ListExpiringResponse{
+				Receipts: getMockReceipts(),
+			}), nil
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 

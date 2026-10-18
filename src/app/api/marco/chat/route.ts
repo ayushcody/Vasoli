@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest } from "next/server";
-import { getGenAI, MARCO_MODEL, MARCO_TOOL_DECLARATIONS } from "@/lib/marco/gemini";
+import { getGenAI, verifyMarcoModel, MARCO_MODEL, MARCO_TOOL_DECLARATIONS } from "@/lib/marco/gemini";
 import { MARCO_SYSTEM_PROMPT } from "@/lib/marco/system-prompt";
 import { executeTool, type ToolName } from "@/lib/marco/tools";
 import { logError } from "@/lib/logger";
@@ -18,6 +18,12 @@ export async function POST(req: NextRequest) {
                 status: 401,
                 headers: { "Content-Type": "application/json" },
             });
+        }
+
+        try {
+            await verifyMarcoModel();
+        } catch {
+            return Response.json({ error: "Marco is unavailable. Your records and payday plan still work. A supported model must be configured to enable chat." }, { status: 503 });
         }
 
         const body = await req.json();

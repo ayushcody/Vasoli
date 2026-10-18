@@ -19,7 +19,7 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} | Smart personal finance`,
+    default: `${siteConfig.name} | Your plan until payday`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,

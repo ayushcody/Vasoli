@@ -13,3 +13,8 @@ export * from './use-recurring';
 export * from './use-reminders';
 export * from './use-health-score';
 export * from './use-receipts';
+export * from './use-spending-analytics';
+export * from './use-accounts';
+export * from './use-achievements';
+export * from './use-pilot';
+export { useActivityTransactions } from './use-transactions';

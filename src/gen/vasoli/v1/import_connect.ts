@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ImportStatementRequest, ImportStatementResponse } from "./import_pb";
+import { CommitStatementImportRequest, CommitStatementImportResponse, ImportStatementRequest, ImportStatementResponse, PreviewStatementRequest, PreviewStatementResponse } from "./import_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,24 @@ export const ImportService = {
       name: "ImportStatement",
       I: ImportStatementRequest,
       O: ImportStatementResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.ImportService.PreviewStatement
+     */
+    previewStatement: {
+      name: "PreviewStatement",
+      I: PreviewStatementRequest,
+      O: PreviewStatementResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.ImportService.CommitStatementImport
+     */
+    commitStatementImport: {
+      name: "CommitStatementImport",
+      I: CommitStatementImportRequest,
+      O: CommitStatementImportResponse,
       kind: MethodKind.Unary,
     },
   }

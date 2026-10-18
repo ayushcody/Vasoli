@@ -12,6 +12,8 @@ export function normalizeMerchant(raw: string): string {
     s = s.replace(/^IMPS[-/]/i, "").trim();
     s = s.replace(/^NEFT[-/]/i, "").trim();
     s = s.replace(/^RTGS[-/]/i, "").trim();
+    s = s.replace(/^POS[-/]/i, "").trim();
+    s = s.replace(/^ATM[-/]/i, "").trim();
 
     // Remove reference numbers at end (e.g., /12345678/...)
     s = s.replace(/\/\d{6,}(\/.*)?$/g, "").trim();

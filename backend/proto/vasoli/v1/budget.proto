@@ -10,6 +10,7 @@ service BudgetService {
   rpc ListBudgets(ListBudgetsRequest) returns (ListBudgetsResponse);
   rpc UpdateBudget(UpdateBudgetRequest) returns (UpdateBudgetResponse);
   rpc DeleteBudget(DeleteBudgetRequest) returns (DeleteBudgetResponse);
+  rpc GetSuggestedBudget(GetSuggestedBudgetRequest) returns (GetSuggestedBudgetResponse);
 }
 
 message Budget {
@@ -24,6 +25,10 @@ message Budget {
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp updated_at = 10;
   int64 spent_paise = 11;
+  bool roll_unused_funds = 12;
+  bool deduct_overspend = 13;
+  float burn_rate_percent = 14;
+  string warning_level = 15; // NONE, WARNING, DANGER, EXCEEDED
 }
 
 message CreateBudgetRequest {
@@ -33,6 +38,8 @@ message CreateBudgetRequest {
   google.protobuf.Timestamp start_date = 4;
   google.protobuf.Timestamp end_date = 5;
   string categories = 6;
+  bool roll_unused_funds = 7;
+  bool deduct_overspend = 8;
 }
 
 message CreateBudgetResponse {
@@ -51,6 +58,8 @@ message UpdateBudgetRequest {
   optional int64 amount_paise = 3;
   optional string period = 4;
   optional string categories = 5;
+  optional bool roll_unused_funds = 6;
+  optional bool deduct_overspend = 7;
 }
 
 message UpdateBudgetResponse {
@@ -62,3 +71,11 @@ message DeleteBudgetRequest {
 }
 
 message DeleteBudgetResponse {}
+
+message GetSuggestedBudgetRequest {}
+
+message GetSuggestedBudgetResponse {
+  int64 amount_paise = 1;
+  string categories = 2;
+  string explanation = 3;
+}

@@ -8,7 +8,11 @@ export interface Transaction {
   amount: number;
   description: string;
   date: string;
-  type: 'INCOME' | 'EXPENSE';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'REFUND' | 'INVESTMENT';
+  accountId?: string;
+  transferGroupId?: string;
+  transferDirection?: string;
+  refundOfTransactionId?: string;
   receiptUrl?: string;
   isRecurring: boolean;
   recurringId?: string;
@@ -42,7 +46,7 @@ export interface CreateTransactionInput {
   amount: number;
   description: string;
   date: string;
-  type: 'INCOME' | 'EXPENSE';
+  type: 'INCOME' | 'EXPENSE' | 'REFUND';
   categoryId?: string;
   receiptUrl?: string;
   splits?: Array<{
@@ -50,6 +54,8 @@ export interface CreateTransactionInput {
     description?: string;
     categoryId: string;
   }>;
+  accountId?: string;
+  refundOfTransactionId?: string;
 }
 
 interface UseTransactionsOptions {
@@ -68,7 +74,11 @@ function mapTransaction(t: any): Transaction {
     amount: Number(t.amountPaise) / 100,
     description: t.description,
     date: t.date?.toDate().toISOString() || "",
-    type: t.type as any,
+    type: t.type as Transaction['type'],
+    accountId: t.accountId || undefined,
+    transferGroupId: t.transferGroupId || undefined,
+    transferDirection: t.transferDirection || undefined,
+    refundOfTransactionId: t.refundOfTransactionId || undefined,
     receiptUrl: t.receiptUrl,
     isRecurring: t.isRecurring,
     recurringId: t.recurringId,
@@ -98,6 +108,39 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
   });
 }
 
+export interface ActivityFilters {
+  categoryId?: string;
+  pageToken?: string;
+  pageSize?: number;
+  accountId?: string;
+  search?: string;
+  type?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useActivityTransactions(filters: ActivityFilters) {
+  return useQuery({
+    queryKey: [TRANSACTIONS_KEY, "activity", filters],
+    queryFn: async () => {
+      const response = await transactionClient.listTransactions({
+        pageSize: filters.pageSize || 50,
+        pageToken: filters.pageToken || "",
+        accountId: filters.accountId || undefined,
+        categoryId: filters.categoryId || undefined,
+        search: filters.search || "",
+        type: filters.type && filters.type !== "ALL" ? filters.type : undefined,
+        startDate: filters.startDate ? Timestamp.fromDate(new Date(`${filters.startDate}T00:00:00+05:30`)) : undefined,
+        endDate: filters.endDate ? Timestamp.fromDate(new Date(`${filters.endDate}T23:59:59.999+05:30`)) : undefined,
+      });
+      return {
+        transactions: response.transactions.map(mapTransaction),
+        nextPageToken: response.nextPageToken,
+      };
+    },
+  });
+}
+
 export function useTransaction(id: string) {
   return useQuery({
     queryKey: [TRANSACTIONS_KEY, id],
@@ -118,10 +161,12 @@ export function useCreateTransaction() {
       const res = await transactionClient.createTransaction({
         amountPaise: BigInt(Math.round(data.amount * 100)),
         description: data.description,
-        date: Timestamp.fromDate(new Date(data.date)),
+        date: Timestamp.fromDate(new Date(/^\d{4}-\d{2}-\d{2}$/.test(data.date) ? `${data.date}T00:00:00+05:30` : data.date)),
         type: data.type,
         categoryId: data.categoryId,
         receiptUrl: data.receiptUrl,
+        accountId: data.accountId,
+        refundOfTransactionId: data.refundOfTransactionId,
       });
       return mapTransaction(res.transaction);
     },
@@ -146,9 +191,11 @@ export function useUpdateTransaction() {
         id,
         amountPaise: data.amount !== undefined ? BigInt(Math.round(data.amount * 100)) : undefined,
         description: data.description,
-        date: data.date ? Timestamp.fromDate(new Date(data.date)) : undefined,
+        date: data.date ? Timestamp.fromDate(new Date(/^\d{4}-\d{2}-\d{2}$/.test(data.date) ? `${data.date}T00:00:00+05:30` : data.date)) : undefined,
         type: data.type,
         categoryId: data.categoryId,
+        accountId: data.accountId,
+        refundOfTransactionId: data.refundOfTransactionId,
       });
       return mapTransaction(res.transaction);
     },
@@ -198,6 +245,6 @@ export function useTransactionSummary() {
         byMonth: [],    // Not supported in MVP summary yet
       };
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }

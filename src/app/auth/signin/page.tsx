@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, LogIn, Sparkles } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -29,25 +28,35 @@ const signInSchema = z.object({
 
 type SignInValues = z.infer<typeof signInSchema>;
 
-const DEMO_CREDENTIALS = {
-  email: "demo@vasoli.app",
-  password: "demo123456",
-};
+function safeRedirectPath(value: string | null) {
+  const fallback = "/app/dashboard";
+  if (!value) return fallback;
+
+  try {
+    const base = "https://vasoli.invalid";
+    const target = new URL(value, base);
+    if (target.origin !== base || !/^\/app(?:\/|$)/.test(target.pathname)) {
+      return fallback;
+    }
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
-  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: DEMO_CREDENTIALS.email,
-      password: DEMO_CREDENTIALS.password,
+      email: "",
+      password: "",
     },
   });
 
   async function signIn(values: SignInValues) {
     const supabase = createClient();
-    const redirectedFrom = searchParams.get("redirectedFrom") || "/app/dashboard";
+    const redirectedFrom = safeRedirectPath(searchParams.get("redirectedFrom"));
 
     const { error } = await supabase.auth.signInWithPassword(values);
 
@@ -65,18 +74,6 @@ export default function SignInPage() {
     await signIn(values);
   }
 
-  async function handleDemoLogin() {
-    form.clearErrors("root");
-    form.setValue("email", DEMO_CREDENTIALS.email, { shouldDirty: true });
-    form.setValue("password", DEMO_CREDENTIALS.password, { shouldDirty: true });
-    setIsDemoLoading(true);
-    try {
-      await signIn(DEMO_CREDENTIALS);
-    } finally {
-      setIsDemoLoading(false);
-    }
-  }
-
   return (
     <div className="min-h-screen bg-paper-1 px-4 py-12">
       <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
@@ -92,41 +89,6 @@ export default function SignInPage() {
             </p>
           </PanelHeader>
           <PanelContent>
-            <div className="mb-5 rounded-neo-md border-brutal bg-paper-1 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Demo Access</p>
-                  <p className="mt-2 text-sm text-ink">
-                    Use the shared demo user to enter the product instantly.
-                  </p>
-                </div>
-                <NeoButton
-                  type="button"
-                  variant="mustard"
-                  size="sm"
-                  onClick={handleDemoLogin}
-                  disabled={form.formState.isSubmitting || isDemoLoading}
-                >
-                  {isDemoLoading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  {isDemoLoading ? "Opening Demo..." : "Demo Login"}
-                </NeoButton>
-              </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-taupe">Demo Email</p>
-                  <p className="mt-1 rounded-neo border-brutal bg-paper-2 px-3 py-2 text-sm text-ink">
-                    {DEMO_CREDENTIALS.email}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-taupe">Demo Password</p>
-                  <p className="mt-1 rounded-neo border-brutal bg-paper-2 px-3 py-2 text-sm text-ink">
-                    {DEMO_CREDENTIALS.password}
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <Form {...form}>
               <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
                 <FormField
@@ -160,7 +122,7 @@ export default function SignInPage() {
                     {form.formState.errors.root.message}
                   </NeoBadge>
                 ) : null}
-                <NeoButton type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting || isDemoLoading}>
+                <NeoButton type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <LogIn className="size-4" />}
                   {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
                 </NeoButton>

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetProfileRequest, GetProfileResponse, GetWealthAnalyticsRequest, GetWealthAnalyticsResponse, UpdateProfileRequest, UpdateProfileResponse } from "./user_pb";
+import { GetNotificationPreferencesRequest, GetNotificationPreferencesResponse, GetProfileRequest, GetProfileResponse, GetWealthAnalyticsRequest, GetWealthAnalyticsResponse, UpdateNotificationPreferencesRequest, UpdateNotificationPreferencesResponse, UpdateProfileRequest, UpdateProfileResponse } from "./user_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,24 @@ export const UserService = {
       name: "GetWealthAnalytics",
       I: GetWealthAnalyticsRequest,
       O: GetWealthAnalyticsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.UserService.GetNotificationPreferences
+     */
+    getNotificationPreferences: {
+      name: "GetNotificationPreferences",
+      I: GetNotificationPreferencesRequest,
+      O: GetNotificationPreferencesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.UserService.UpdateNotificationPreferences
+     */
+    updateNotificationPreferences: {
+      name: "UpdateNotificationPreferences",
+      I: UpdateNotificationPreferencesRequest,
+      O: UpdateNotificationPreferencesResponse,
       kind: MethodKind.Unary,
     },
   }

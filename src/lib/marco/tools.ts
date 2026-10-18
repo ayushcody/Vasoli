@@ -1,13 +1,16 @@
 import { createPromiseClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
-import { computeCashflow } from "@/lib/engine/cashflow";
+import { PilotService } from "@/gen/vasoli/v1/pilot_connect";
+import { AccountService } from "@/gen/vasoli/v1/account_connect";
 import { CategoryService } from "@/gen/vasoli/v1/category_connect";
 import { GoalService } from "@/gen/vasoli/v1/goal_connect";
 import { ReceiptService } from "@/gen/vasoli/v1/receipt_connect";
 import { RecurringService } from "@/gen/vasoli/v1/recurring_connect";
 import { TransactionService } from "@/gen/vasoli/v1/transaction_connect";
 import { UserService } from "@/gen/vasoli/v1/user_connect";
+import { InsightsService } from "@/gen/vasoli/v1/insights_connect";
+import { ReminderService } from "@/gen/vasoli/v1/reminder_connect";
 import { Timestamp } from "@bufbuild/protobuf";
 
 type MarcoToolContext = {
@@ -27,12 +30,16 @@ function createMarcoRpcClients(context: MarcoToolContext) {
   });
 
   return {
+    pilotClient: createPromiseClient(PilotService, transport),
+    accountClient: createPromiseClient(AccountService, transport),
     categoryClient: createPromiseClient(CategoryService, transport),
     goalClient: createPromiseClient(GoalService, transport),
     receiptClient: createPromiseClient(ReceiptService, transport),
     recurringClient: createPromiseClient(RecurringService, transport),
     transactionClient: createPromiseClient(TransactionService, transport),
     userClient: createPromiseClient(UserService, transport),
+    insightsClient: createPromiseClient(InsightsService, transport),
+    reminderClient: createPromiseClient(ReminderService, transport),
   };
 }
 
@@ -102,8 +109,9 @@ export async function getDashboardSnapshot(
     period: `Last ${days} days`,
     totalIncome,
     totalExpense,
-    balance: analyticsResponse.saved,
-    safeToSpend: Math.max(0, analyticsResponse.saved),
+    monthlyNetFlow: analyticsResponse.saved,
+    spendingEstimateAvailableFrom: "get_cashflow_radar",
+    coverage: "This snapshot is limited to at most 200 recent transactions; do not treat it as a complete ledger.",
     transactionCount: transactions.length,
     pendingCount: transactions.filter((transaction) => transaction.status === "PENDING").length,
     byCategory: Object.entries(byCategory)
@@ -198,45 +206,18 @@ export async function searchTransactions(
 
 export async function getCashflowRadar(
   context: MarcoToolContext,
-  args: { horizonDays?: number },
+  _args: { horizonDays?: number },
 ) {
-  const horizonDays = args.horizonDays || 30;
-  const { recurringClient, userClient } = createMarcoRpcClients(context);
-  const [rulesResponse, analyticsResponse] = await Promise.all([
-    recurringClient.listRules({}),
-    userClient.getWealthAnalytics({}),
-  ]);
-
-  const cashflow = computeCashflow({
-    currentBalance: analyticsResponse.saved,
-    daysToProject: horizonDays,
-    recurringRules: rulesResponse.rules.map((rule) => ({
-      amount: Number(rule.amountPaise) / 100,
-      type: rule.type === "INCOME" ? "income" : "bill",
-      cadence: rule.cadence,
-      nextDueDate: rule.nextDueDate?.toDate().toISOString() || new Date().toISOString(),
-      merchant: rule.merchantNorm,
-    })),
-  });
-
+  const { pilotClient } = createMarcoRpcClients(context);
+  const response = await pilotClient.getPaydayPlan({});
   return {
-    currentBalance: analyticsResponse.saved,
-    minSafeBalance: cashflow.minSafeBalance,
-    safeToSpendToday: cashflow.safeToSpendToday,
-    horizonDays,
-    gapDaysCount: cashflow.gapDays,
-    projections: cashflow.projections.slice(0, 14).map((projection) => ({
-      date: projection.date,
-      balance: projection.projectedBalance,
-      events: projection.events,
-    })),
-    upcomingRecurring: rulesResponse.rules.map((rule) => ({
-      type: rule.type,
-      merchant: rule.merchantNorm,
-      amount: Number(rule.amountPaise) / 100,
-      nextDue: rule.nextDueDate?.toDate().toISOString().slice(0, 10) || null,
-      cadence: rule.cadence,
-    })),
+    source: "The same server-calculated payday plan shown in Vasoli",
+    actionable: response.actionable,
+    config: response.config?.toJson(),
+    accounts: response.accounts.map(account => account.toJson()),
+    projections: response.dayProjections.map(day => day.toJson()),
+    warnings: response.warnings.map(warning => ({ code: warning.code, message: warning.message })),
+    assumptions: "Uses confirmed INR account balances, unpaid obligations, the user's daily spending allowance, reserve and goal reservation. Future salary is excluded from spendable money. Do not recommend spending when actionable is false.",
   };
 }
 
@@ -365,6 +346,99 @@ export async function getSyncConfidence(context: MarcoToolContext) {
   };
 }
 
+export async function getSpendingAnalytics(
+  context: MarcoToolContext,
+  args: { monthYear?: string },
+) {
+  const { insightsClient } = createMarcoRpcClients(context);
+  const targetMonth = args.monthYear || new Date().toISOString().slice(0, 7);
+
+  const [analytics, merchants] = await Promise.all([
+    insightsClient.getSpendingAnalytics({ monthYear: targetMonth }),
+    insightsClient.getMerchantInsights({ monthYear: targetMonth })
+  ]);
+
+  return {
+    monthYear: targetMonth,
+    topCategories: analytics.topCategories.map(c => ({
+      name: c.name,
+      totalPaise: Number(c.totalPaise)
+    })),
+    categoryTrends: analytics.trends.map(t => ({
+      categoryName: t.categoryName,
+      currentPaise: Number(t.currentPaise),
+      previousPaise: Number(t.previousPaise),
+      differencePaise: Number(t.differencePaise)
+    })),
+    topMerchants: merchants.topMerchants.map(m => ({
+      merchant: m.merchant,
+      currentPaise: Number(m.currentPaise)
+    })),
+    merchantTrends: merchants.trends.map(t => ({
+      merchant: t.merchant,
+      currentPaise: Number(t.currentPaise),
+      previousPaise: Number(t.previousPaise),
+      differencePaise: Number(t.differencePaise),
+      currentCount: t.currentCount
+    })),
+    savingsOpportunities: merchants.savingsOpportunities.map(s => ({
+      type: s.type,
+      merchant: s.merchant,
+      description: s.description,
+      potentialSavingsPaise: Number(s.potentialSavingsPaise)
+    }))
+  };
+}
+
+export async function getUpcomingReminders(
+  context: MarcoToolContext,
+  args: { type?: string },
+) {
+  const { reminderClient } = createMarcoRpcClients(context);
+  const response = await reminderClient.listReminders({});
+  const reminders = response.reminders.filter(r => r.status === "PENDING" || r.status === "SNOOZED");
+
+  const now = Date.now();
+
+  return {
+    count: reminders.length,
+    reminders: reminders.map(r => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      type: r.type,
+      status: r.status,
+      dueDate: r.dueDate ? r.dueDate.toDate().toISOString().slice(0, 10) : null,
+      daysUntilDue: r.dueDate ? Math.ceil((r.dueDate.toDate().getTime() - now) / (24 * 60 * 60 * 1000)) : null
+    }))
+  };
+}
+
+export async function getHealthScore(context: MarcoToolContext) {
+  const { insightsClient } = createMarcoRpcClients(context);
+  const response = await insightsClient.getHealthScore({});
+
+  return {
+    score: response.score,
+    components: response.components.map(c => ({
+      name: c.name,
+      score: c.score,
+      description: c.description
+    })),
+    factors: response.factors.map(f => ({
+      type: f.type,
+      title: f.title,
+      description: f.description,
+      impact: f.impact
+    })),
+    insights: response.insights.map(i => ({
+      category: i.category,
+      tip: i.tip,
+      priority: i.priority
+    }))
+  };
+}
+
 export type ToolName =
   | "get_dashboard_snapshot"
   | "search_transactions"
@@ -372,7 +446,10 @@ export type ToolName =
   | "get_recurring"
   | "get_goals"
   | "get_receipts_lifecycle"
-  | "get_sync_confidence";
+  | "get_sync_confidence"
+  | "get_spending_analytics"
+  | "get_upcoming_reminders"
+  | "get_health_score";
 
 export async function executeTool(
   toolName: ToolName,
@@ -394,6 +471,12 @@ export async function executeTool(
       return getReceiptsLifecycle(context, args);
     case "get_sync_confidence":
       return getSyncConfidence(context);
+    case "get_spending_analytics":
+      return getSpendingAnalytics(context, args);
+    case "get_upcoming_reminders":
+      return getUpcomingReminders(context, args);
+    case "get_health_score":
+      return getHealthScore(context);
     default:
       return { error: `Unknown tool: ${toolName}` };
   }

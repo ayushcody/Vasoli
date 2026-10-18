@@ -36,11 +36,19 @@ const (
 	// ImportServiceImportStatementProcedure is the fully-qualified name of the ImportService's
 	// ImportStatement RPC.
 	ImportServiceImportStatementProcedure = "/vasoli.v1.ImportService/ImportStatement"
+	// ImportServicePreviewStatementProcedure is the fully-qualified name of the ImportService's
+	// PreviewStatement RPC.
+	ImportServicePreviewStatementProcedure = "/vasoli.v1.ImportService/PreviewStatement"
+	// ImportServiceCommitStatementImportProcedure is the fully-qualified name of the ImportService's
+	// CommitStatementImport RPC.
+	ImportServiceCommitStatementImportProcedure = "/vasoli.v1.ImportService/CommitStatementImport"
 )
 
 // ImportServiceClient is a client for the vasoli.v1.ImportService service.
 type ImportServiceClient interface {
 	ImportStatement(context.Context, *connect.Request[v1.ImportStatementRequest]) (*connect.Response[v1.ImportStatementResponse], error)
+	PreviewStatement(context.Context, *connect.Request[v1.PreviewStatementRequest]) (*connect.Response[v1.PreviewStatementResponse], error)
+	CommitStatementImport(context.Context, *connect.Request[v1.CommitStatementImportRequest]) (*connect.Response[v1.CommitStatementImportResponse], error)
 }
 
 // NewImportServiceClient constructs a client for the vasoli.v1.ImportService service. By default,
@@ -60,12 +68,26 @@ func NewImportServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(importServiceMethods.ByName("ImportStatement")),
 			connect.WithClientOptions(opts...),
 		),
+		previewStatement: connect.NewClient[v1.PreviewStatementRequest, v1.PreviewStatementResponse](
+			httpClient,
+			baseURL+ImportServicePreviewStatementProcedure,
+			connect.WithSchema(importServiceMethods.ByName("PreviewStatement")),
+			connect.WithClientOptions(opts...),
+		),
+		commitStatementImport: connect.NewClient[v1.CommitStatementImportRequest, v1.CommitStatementImportResponse](
+			httpClient,
+			baseURL+ImportServiceCommitStatementImportProcedure,
+			connect.WithSchema(importServiceMethods.ByName("CommitStatementImport")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // importServiceClient implements ImportServiceClient.
 type importServiceClient struct {
-	importStatement *connect.Client[v1.ImportStatementRequest, v1.ImportStatementResponse]
+	importStatement       *connect.Client[v1.ImportStatementRequest, v1.ImportStatementResponse]
+	previewStatement      *connect.Client[v1.PreviewStatementRequest, v1.PreviewStatementResponse]
+	commitStatementImport *connect.Client[v1.CommitStatementImportRequest, v1.CommitStatementImportResponse]
 }
 
 // ImportStatement calls vasoli.v1.ImportService.ImportStatement.
@@ -73,9 +95,21 @@ func (c *importServiceClient) ImportStatement(ctx context.Context, req *connect.
 	return c.importStatement.CallUnary(ctx, req)
 }
 
+// PreviewStatement calls vasoli.v1.ImportService.PreviewStatement.
+func (c *importServiceClient) PreviewStatement(ctx context.Context, req *connect.Request[v1.PreviewStatementRequest]) (*connect.Response[v1.PreviewStatementResponse], error) {
+	return c.previewStatement.CallUnary(ctx, req)
+}
+
+// CommitStatementImport calls vasoli.v1.ImportService.CommitStatementImport.
+func (c *importServiceClient) CommitStatementImport(ctx context.Context, req *connect.Request[v1.CommitStatementImportRequest]) (*connect.Response[v1.CommitStatementImportResponse], error) {
+	return c.commitStatementImport.CallUnary(ctx, req)
+}
+
 // ImportServiceHandler is an implementation of the vasoli.v1.ImportService service.
 type ImportServiceHandler interface {
 	ImportStatement(context.Context, *connect.Request[v1.ImportStatementRequest]) (*connect.Response[v1.ImportStatementResponse], error)
+	PreviewStatement(context.Context, *connect.Request[v1.PreviewStatementRequest]) (*connect.Response[v1.PreviewStatementResponse], error)
+	CommitStatementImport(context.Context, *connect.Request[v1.CommitStatementImportRequest]) (*connect.Response[v1.CommitStatementImportResponse], error)
 }
 
 // NewImportServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +125,26 @@ func NewImportServiceHandler(svc ImportServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(importServiceMethods.ByName("ImportStatement")),
 		connect.WithHandlerOptions(opts...),
 	)
+	importServicePreviewStatementHandler := connect.NewUnaryHandler(
+		ImportServicePreviewStatementProcedure,
+		svc.PreviewStatement,
+		connect.WithSchema(importServiceMethods.ByName("PreviewStatement")),
+		connect.WithHandlerOptions(opts...),
+	)
+	importServiceCommitStatementImportHandler := connect.NewUnaryHandler(
+		ImportServiceCommitStatementImportProcedure,
+		svc.CommitStatementImport,
+		connect.WithSchema(importServiceMethods.ByName("CommitStatementImport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vasoli.v1.ImportService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ImportServiceImportStatementProcedure:
 			importServiceImportStatementHandler.ServeHTTP(w, r)
+		case ImportServicePreviewStatementProcedure:
+			importServicePreviewStatementHandler.ServeHTTP(w, r)
+		case ImportServiceCommitStatementImportProcedure:
+			importServiceCommitStatementImportHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +156,12 @@ type UnimplementedImportServiceHandler struct{}
 
 func (UnimplementedImportServiceHandler) ImportStatement(context.Context, *connect.Request[v1.ImportStatementRequest]) (*connect.Response[v1.ImportStatementResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.ImportService.ImportStatement is not implemented"))
+}
+
+func (UnimplementedImportServiceHandler) PreviewStatement(context.Context, *connect.Request[v1.PreviewStatementRequest]) (*connect.Response[v1.PreviewStatementResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.ImportService.PreviewStatement is not implemented"))
+}
+
+func (UnimplementedImportServiceHandler) CommitStatementImport(context.Context, *connect.Request[v1.CommitStatementImportRequest]) (*connect.Response[v1.CommitStatementImportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.ImportService.CommitStatementImport is not implemented"))
 }

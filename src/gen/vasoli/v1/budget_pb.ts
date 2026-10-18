@@ -69,6 +69,28 @@ export class Budget extends Message<Budget> {
    */
   spentPaise = protoInt64.zero;
 
+  /**
+   * @generated from field: bool roll_unused_funds = 12;
+   */
+  rollUnusedFunds = false;
+
+  /**
+   * @generated from field: bool deduct_overspend = 13;
+   */
+  deductOverspend = false;
+
+  /**
+   * @generated from field: float burn_rate_percent = 14;
+   */
+  burnRatePercent = 0;
+
+  /**
+   * NONE, WARNING, DANGER, EXCEEDED
+   *
+   * @generated from field: string warning_level = 15;
+   */
+  warningLevel = "";
+
   constructor(data?: PartialMessage<Budget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -88,6 +110,10 @@ export class Budget extends Message<Budget> {
     { no: 9, name: "created_at", kind: "message", T: Timestamp },
     { no: 10, name: "updated_at", kind: "message", T: Timestamp },
     { no: 11, name: "spent_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 12, name: "roll_unused_funds", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "deduct_overspend", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 14, name: "burn_rate_percent", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 15, name: "warning_level", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Budget {
@@ -141,6 +167,16 @@ export class CreateBudgetRequest extends Message<CreateBudgetRequest> {
    */
   categories = "";
 
+  /**
+   * @generated from field: bool roll_unused_funds = 7;
+   */
+  rollUnusedFunds = false;
+
+  /**
+   * @generated from field: bool deduct_overspend = 8;
+   */
+  deductOverspend = false;
+
   constructor(data?: PartialMessage<CreateBudgetRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -155,6 +191,8 @@ export class CreateBudgetRequest extends Message<CreateBudgetRequest> {
     { no: 4, name: "start_date", kind: "message", T: Timestamp },
     { no: 5, name: "end_date", kind: "message", T: Timestamp },
     { no: 6, name: "categories", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "roll_unused_funds", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "deduct_overspend", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateBudgetRequest {
@@ -308,6 +346,16 @@ export class UpdateBudgetRequest extends Message<UpdateBudgetRequest> {
    */
   categories?: string;
 
+  /**
+   * @generated from field: optional bool roll_unused_funds = 6;
+   */
+  rollUnusedFunds?: boolean;
+
+  /**
+   * @generated from field: optional bool deduct_overspend = 7;
+   */
+  deductOverspend?: boolean;
+
   constructor(data?: PartialMessage<UpdateBudgetRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -321,6 +369,8 @@ export class UpdateBudgetRequest extends Message<UpdateBudgetRequest> {
     { no: 3, name: "amount_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
     { no: 4, name: "period", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 5, name: "categories", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "roll_unused_funds", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 7, name: "deduct_overspend", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBudgetRequest {
@@ -442,6 +492,86 @@ export class DeleteBudgetResponse extends Message<DeleteBudgetResponse> {
 
   static equals(a: DeleteBudgetResponse | PlainMessage<DeleteBudgetResponse> | undefined, b: DeleteBudgetResponse | PlainMessage<DeleteBudgetResponse> | undefined): boolean {
     return proto3.util.equals(DeleteBudgetResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetSuggestedBudgetRequest
+ */
+export class GetSuggestedBudgetRequest extends Message<GetSuggestedBudgetRequest> {
+  constructor(data?: PartialMessage<GetSuggestedBudgetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetSuggestedBudgetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSuggestedBudgetRequest {
+    return new GetSuggestedBudgetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSuggestedBudgetRequest {
+    return new GetSuggestedBudgetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSuggestedBudgetRequest {
+    return new GetSuggestedBudgetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSuggestedBudgetRequest | PlainMessage<GetSuggestedBudgetRequest> | undefined, b: GetSuggestedBudgetRequest | PlainMessage<GetSuggestedBudgetRequest> | undefined): boolean {
+    return proto3.util.equals(GetSuggestedBudgetRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetSuggestedBudgetResponse
+ */
+export class GetSuggestedBudgetResponse extends Message<GetSuggestedBudgetResponse> {
+  /**
+   * @generated from field: int64 amount_paise = 1;
+   */
+  amountPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: string categories = 2;
+   */
+  categories = "";
+
+  /**
+   * @generated from field: string explanation = 3;
+   */
+  explanation = "";
+
+  constructor(data?: PartialMessage<GetSuggestedBudgetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetSuggestedBudgetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "amount_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "categories", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "explanation", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSuggestedBudgetResponse {
+    return new GetSuggestedBudgetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSuggestedBudgetResponse {
+    return new GetSuggestedBudgetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSuggestedBudgetResponse {
+    return new GetSuggestedBudgetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSuggestedBudgetResponse | PlainMessage<GetSuggestedBudgetResponse> | undefined, b: GetSuggestedBudgetResponse | PlainMessage<GetSuggestedBudgetResponse> | undefined): boolean {
+    return proto3.util.equals(GetSuggestedBudgetResponse, a, b);
   }
 }
 

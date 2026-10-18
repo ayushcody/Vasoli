@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetHealthScoreRequest, GetHealthScoreResponse, GetSummaryRequest, GetSummaryResponse, GetZineRequest, GetZineResponse } from "./insights_pb";
+import { GetEmergencyFundProgressRequest, GetEmergencyFundProgressResponse, GetHealthScoreRequest, GetHealthScoreResponse, GetMerchantInsightsRequest, GetMerchantInsightsResponse, GetSpendingAnalyticsRequest, GetSpendingAnalyticsResponse, GetSummaryRequest, GetSummaryResponse, GetZineRequest, GetZineResponse } from "./insights_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,33 @@ export const InsightsService = {
       name: "GetHealthScore",
       I: GetHealthScoreRequest,
       O: GetHealthScoreResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.InsightsService.GetSpendingAnalytics
+     */
+    getSpendingAnalytics: {
+      name: "GetSpendingAnalytics",
+      I: GetSpendingAnalyticsRequest,
+      O: GetSpendingAnalyticsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.InsightsService.GetMerchantInsights
+     */
+    getMerchantInsights: {
+      name: "GetMerchantInsights",
+      I: GetMerchantInsightsRequest,
+      O: GetMerchantInsightsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.InsightsService.GetEmergencyFundProgress
+     */
+    getEmergencyFundProgress: {
+      name: "GetEmergencyFundProgress",
+      I: GetEmergencyFundProgressRequest,
+      O: GetEmergencyFundProgressResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -6,7 +6,7 @@ export const siteConfig = {
   name: "Vasoli",
   shortName: "Vasoli",
   description:
-    "A privacy-first money cockpit for tracking spends, receipts, obligations, and monthly financial clarity.",
+    "Plan the days until payday with account-linked records, reviewed statements, bills, everyday spending and one goal. An invite-only pilot for India.",
   url: rawSiteUrl.replace(/\/$/, ""),
   supportEmail: "support@vasoli.app",
 };

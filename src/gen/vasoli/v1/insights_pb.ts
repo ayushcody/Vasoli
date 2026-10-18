@@ -606,3 +606,487 @@ export class GetZineResponse extends Message<GetZineResponse> {
   }
 }
 
+/**
+ * @generated from message vasoli.v1.GetSpendingAnalyticsRequest
+ */
+export class GetSpendingAnalyticsRequest extends Message<GetSpendingAnalyticsRequest> {
+  /**
+   * Format: YYYY-MM
+   *
+   * @generated from field: string month_year = 1;
+   */
+  monthYear = "";
+
+  constructor(data?: PartialMessage<GetSpendingAnalyticsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetSpendingAnalyticsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "month_year", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSpendingAnalyticsRequest {
+    return new GetSpendingAnalyticsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSpendingAnalyticsRequest {
+    return new GetSpendingAnalyticsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSpendingAnalyticsRequest {
+    return new GetSpendingAnalyticsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSpendingAnalyticsRequest | PlainMessage<GetSpendingAnalyticsRequest> | undefined, b: GetSpendingAnalyticsRequest | PlainMessage<GetSpendingAnalyticsRequest> | undefined): boolean {
+    return proto3.util.equals(GetSpendingAnalyticsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.CategoryTrend
+ */
+export class CategoryTrend extends Message<CategoryTrend> {
+  /**
+   * @generated from field: string category_name = 1;
+   */
+  categoryName = "";
+
+  /**
+   * @generated from field: string category_icon = 2;
+   */
+  categoryIcon = "";
+
+  /**
+   * @generated from field: int64 current_paise = 3;
+   */
+  currentPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 previous_paise = 4;
+   */
+  previousPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 difference_paise = 5;
+   */
+  differencePaise = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CategoryTrend>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.CategoryTrend";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "category_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "category_icon", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "current_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "previous_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "difference_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CategoryTrend {
+    return new CategoryTrend().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CategoryTrend {
+    return new CategoryTrend().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CategoryTrend {
+    return new CategoryTrend().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CategoryTrend | PlainMessage<CategoryTrend> | undefined, b: CategoryTrend | PlainMessage<CategoryTrend> | undefined): boolean {
+    return proto3.util.equals(CategoryTrend, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetSpendingAnalyticsResponse
+ */
+export class GetSpendingAnalyticsResponse extends Message<GetSpendingAnalyticsResponse> {
+  /**
+   * @generated from field: repeated vasoli.v1.CategoryTrend trends = 1;
+   */
+  trends: CategoryTrend[] = [];
+
+  /**
+   * @generated from field: repeated vasoli.v1.CategoryInsight top_categories = 2;
+   */
+  topCategories: CategoryInsight[] = [];
+
+  constructor(data?: PartialMessage<GetSpendingAnalyticsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetSpendingAnalyticsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trends", kind: "message", T: CategoryTrend, repeated: true },
+    { no: 2, name: "top_categories", kind: "message", T: CategoryInsight, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSpendingAnalyticsResponse {
+    return new GetSpendingAnalyticsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSpendingAnalyticsResponse {
+    return new GetSpendingAnalyticsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSpendingAnalyticsResponse {
+    return new GetSpendingAnalyticsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSpendingAnalyticsResponse | PlainMessage<GetSpendingAnalyticsResponse> | undefined, b: GetSpendingAnalyticsResponse | PlainMessage<GetSpendingAnalyticsResponse> | undefined): boolean {
+    return proto3.util.equals(GetSpendingAnalyticsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetMerchantInsightsRequest
+ */
+export class GetMerchantInsightsRequest extends Message<GetMerchantInsightsRequest> {
+  /**
+   * Format: YYYY-MM
+   *
+   * @generated from field: string month_year = 1;
+   */
+  monthYear = "";
+
+  constructor(data?: PartialMessage<GetMerchantInsightsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetMerchantInsightsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "month_year", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMerchantInsightsRequest {
+    return new GetMerchantInsightsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMerchantInsightsRequest {
+    return new GetMerchantInsightsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMerchantInsightsRequest {
+    return new GetMerchantInsightsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMerchantInsightsRequest | PlainMessage<GetMerchantInsightsRequest> | undefined, b: GetMerchantInsightsRequest | PlainMessage<GetMerchantInsightsRequest> | undefined): boolean {
+    return proto3.util.equals(GetMerchantInsightsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.MerchantTrend
+ */
+export class MerchantTrend extends Message<MerchantTrend> {
+  /**
+   * @generated from field: string merchant = 1;
+   */
+  merchant = "";
+
+  /**
+   * @generated from field: int64 current_paise = 2;
+   */
+  currentPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 previous_paise = 3;
+   */
+  previousPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int32 current_count = 4;
+   */
+  currentCount = 0;
+
+  /**
+   * @generated from field: int64 difference_paise = 5;
+   */
+  differencePaise = protoInt64.zero;
+
+  constructor(data?: PartialMessage<MerchantTrend>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.MerchantTrend";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "merchant", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "current_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "previous_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "current_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 5, name: "difference_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MerchantTrend {
+    return new MerchantTrend().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MerchantTrend {
+    return new MerchantTrend().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MerchantTrend {
+    return new MerchantTrend().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MerchantTrend | PlainMessage<MerchantTrend> | undefined, b: MerchantTrend | PlainMessage<MerchantTrend> | undefined): boolean {
+    return proto3.util.equals(MerchantTrend, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.SavingsOpportunity
+ */
+export class SavingsOpportunity extends Message<SavingsOpportunity> {
+  /**
+   * e.g. "HIGH_FREQUENCY_SMALL_SPENDS", "SUBSCRIPTION_LIKE"
+   *
+   * @generated from field: string type = 1;
+   */
+  type = "";
+
+  /**
+   * @generated from field: string merchant = 2;
+   */
+  merchant = "";
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description = "";
+
+  /**
+   * @generated from field: int64 potential_savings_paise = 4;
+   */
+  potentialSavingsPaise = protoInt64.zero;
+
+  constructor(data?: PartialMessage<SavingsOpportunity>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.SavingsOpportunity";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "merchant", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "potential_savings_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SavingsOpportunity {
+    return new SavingsOpportunity().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SavingsOpportunity {
+    return new SavingsOpportunity().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SavingsOpportunity {
+    return new SavingsOpportunity().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SavingsOpportunity | PlainMessage<SavingsOpportunity> | undefined, b: SavingsOpportunity | PlainMessage<SavingsOpportunity> | undefined): boolean {
+    return proto3.util.equals(SavingsOpportunity, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetMerchantInsightsResponse
+ */
+export class GetMerchantInsightsResponse extends Message<GetMerchantInsightsResponse> {
+  /**
+   * @generated from field: repeated vasoli.v1.MerchantTrend trends = 1;
+   */
+  trends: MerchantTrend[] = [];
+
+  /**
+   * @generated from field: repeated vasoli.v1.MerchantTrend top_merchants = 2;
+   */
+  topMerchants: MerchantTrend[] = [];
+
+  /**
+   * @generated from field: repeated vasoli.v1.SavingsOpportunity savings_opportunities = 3;
+   */
+  savingsOpportunities: SavingsOpportunity[] = [];
+
+  constructor(data?: PartialMessage<GetMerchantInsightsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetMerchantInsightsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trends", kind: "message", T: MerchantTrend, repeated: true },
+    { no: 2, name: "top_merchants", kind: "message", T: MerchantTrend, repeated: true },
+    { no: 3, name: "savings_opportunities", kind: "message", T: SavingsOpportunity, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMerchantInsightsResponse {
+    return new GetMerchantInsightsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMerchantInsightsResponse {
+    return new GetMerchantInsightsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMerchantInsightsResponse {
+    return new GetMerchantInsightsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMerchantInsightsResponse | PlainMessage<GetMerchantInsightsResponse> | undefined, b: GetMerchantInsightsResponse | PlainMessage<GetMerchantInsightsResponse> | undefined): boolean {
+    return proto3.util.equals(GetMerchantInsightsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetEmergencyFundProgressRequest
+ */
+export class GetEmergencyFundProgressRequest extends Message<GetEmergencyFundProgressRequest> {
+  constructor(data?: PartialMessage<GetEmergencyFundProgressRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetEmergencyFundProgressRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetEmergencyFundProgressRequest {
+    return new GetEmergencyFundProgressRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetEmergencyFundProgressRequest {
+    return new GetEmergencyFundProgressRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetEmergencyFundProgressRequest {
+    return new GetEmergencyFundProgressRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetEmergencyFundProgressRequest | PlainMessage<GetEmergencyFundProgressRequest> | undefined, b: GetEmergencyFundProgressRequest | PlainMessage<GetEmergencyFundProgressRequest> | undefined): boolean {
+    return proto3.util.equals(GetEmergencyFundProgressRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.EmergencyFundProgress
+ */
+export class EmergencyFundProgress extends Message<EmergencyFundProgress> {
+  /**
+   * @generated from field: int64 current_balance_paise = 1;
+   */
+  currentBalancePaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 average_monthly_expense_paise = 2;
+   */
+  averageMonthlyExpensePaise = protoInt64.zero;
+
+  /**
+   * @generated from field: double months_of_runway = 3;
+   */
+  monthsOfRunway = 0;
+
+  /**
+   * @generated from field: int64 target_1_month_paise = 4;
+   */
+  target1MonthPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 target_3_month_paise = 5;
+   */
+  target3MonthPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 target_6_month_paise = 6;
+   */
+  target6MonthPaise = protoInt64.zero;
+
+  constructor(data?: PartialMessage<EmergencyFundProgress>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.EmergencyFundProgress";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "current_balance_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "average_monthly_expense_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "months_of_runway", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "target_1_month_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "target_3_month_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 6, name: "target_6_month_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EmergencyFundProgress {
+    return new EmergencyFundProgress().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EmergencyFundProgress {
+    return new EmergencyFundProgress().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EmergencyFundProgress {
+    return new EmergencyFundProgress().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EmergencyFundProgress | PlainMessage<EmergencyFundProgress> | undefined, b: EmergencyFundProgress | PlainMessage<EmergencyFundProgress> | undefined): boolean {
+    return proto3.util.equals(EmergencyFundProgress, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetEmergencyFundProgressResponse
+ */
+export class GetEmergencyFundProgressResponse extends Message<GetEmergencyFundProgressResponse> {
+  /**
+   * @generated from field: vasoli.v1.EmergencyFundProgress progress = 1;
+   */
+  progress?: EmergencyFundProgress;
+
+  constructor(data?: PartialMessage<GetEmergencyFundProgressResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetEmergencyFundProgressResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "progress", kind: "message", T: EmergencyFundProgress },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetEmergencyFundProgressResponse {
+    return new GetEmergencyFundProgressResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetEmergencyFundProgressResponse {
+    return new GetEmergencyFundProgressResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetEmergencyFundProgressResponse {
+    return new GetEmergencyFundProgressResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetEmergencyFundProgressResponse | PlainMessage<GetEmergencyFundProgressResponse> | undefined, b: GetEmergencyFundProgressResponse | PlainMessage<GetEmergencyFundProgressResponse> | undefined): boolean {
+    return proto3.util.equals(GetEmergencyFundProgressResponse, a, b);
+  }
+}
+

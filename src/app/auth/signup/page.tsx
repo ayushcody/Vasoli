@@ -35,6 +35,7 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 type OtpValues = z.infer<typeof otpSchema>;
 
 export default function SignUpPage() {
+  const inviteOnly = process.env.NEXT_PUBLIC_PILOT_INVITE_ONLY !== "false";
   const signUpForm = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -100,17 +101,23 @@ export default function SignUpPage() {
               V
             </div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">
-              {verificationStep ? "Verify email" : "Sign up"}
+              {inviteOnly ? "Private pilot" : verificationStep ? "Verify email" : "Sign up"}
             </p>
-            <PanelTitle>{verificationStep ? `Enter the code sent to ${currentEmail}` : "Create your account"}</PanelTitle>
+            <PanelTitle>{inviteOnly ? "Vasoli is invite-only right now" : verificationStep ? `Enter the code sent to ${currentEmail}` : "Create your account"}</PanelTitle>
             <p className="text-sm leading-7 text-taupe">
-              {verificationStep
+              {inviteOnly
+                ? "New account creation is paused during the private pilot. If you already have access, sign in with your invited account."
+                : verificationStep
                 ? "Finish verification to activate the workspace."
                 : "Create a Vasoli account with email verification before entering the protected app."}
             </p>
           </PanelHeader>
           <PanelContent>
-          {!verificationStep ? (
+          {inviteOnly ? (
+            <div className="rounded-neo border-brutal bg-paper-1 p-4 text-sm text-ink">
+              Ask your pilot host for an invite. You can still sign in if you already have an account.
+            </div>
+          ) : !verificationStep ? (
             <>
               <Form {...signUpForm}>
                 <form className="space-y-5" onSubmit={signUpForm.handleSubmit(handleSignUp)}>

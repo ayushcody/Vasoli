@@ -37,6 +37,10 @@ message Transaction {
   string provenance = 19;
   repeated string tags = 20;
   optional string upi_ref = 21;
+  optional string account_id = 22;
+  optional string transfer_group_id = 23;
+  optional string transfer_direction = 24;
+  optional string refund_of_transaction_id = 25;
 }
 
 message CreateTransactionRequest {
@@ -56,6 +60,8 @@ message CreateTransactionRequest {
   string provenance = 13;
   repeated string tags = 14;
   optional string upi_ref = 15;
+  optional string account_id = 16;
+  optional string refund_of_transaction_id = 17;
 }
 
 message CreateTransactionResponse {
@@ -77,6 +83,8 @@ message ListTransactionsRequest {
   optional string category_id = 4;
   optional google.protobuf.Timestamp start_date = 5;
   optional google.protobuf.Timestamp end_date = 6;
+  optional string account_id = 7;
+  string search = 8;
 }
 
 message ListTransactionsResponse {
@@ -101,6 +109,8 @@ message UpdateTransactionRequest {
   optional string provenance = 13;
   repeated string tags = 14;
   optional string upi_ref = 15;
+  optional string account_id = 16;
+  optional string refund_of_transaction_id = 17;
 }
 
 message UpdateTransactionResponse {

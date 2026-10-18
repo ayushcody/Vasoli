@@ -5,6 +5,14 @@
  * - PBKDF2 to derive key from user passphrase
  * - AES-GCM for symmetric encryption of receipts
  * - Salt and IV stored alongside ciphertext, passphrase NEVER stored.
+ *
+ * THREAT MODEL & PRIVACY GUARANTEES:
+ * 1. Encryption happens BEFORE storage: The raw OCR text and manual notes
+ *    are encrypted in the browser's memory. The backend only ever receives
+ *    the ciphertext (the `vault:v1:...` payload).
+ * 2. Zero-Knowledge: The passphrase and the derived key material NEVER leave
+ *    the browser. They are not sent over the network, ensuring the server
+ *    cannot decrypt user receipts even if the database is compromised.
  */
 
 const PBKDF2_ITERATIONS = 100_000;

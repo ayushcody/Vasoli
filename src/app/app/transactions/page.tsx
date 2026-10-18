@@ -1,494 +1,230 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ArrowDownUp,
-  Download,
-  FileSpreadsheet,
-  MoreHorizontal,
-  Plus,
-  ReceiptText,
-  Search,
-  Trash2,
-} from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { Download, FileSpreadsheet, Plus, Search, ArrowLeftRight, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { z } from "zod";
-
-import { StatementImporter } from "@/components/import/statement-importer";
-import { FirstRunHint, InlineErrorState, ScreenEmptyState, TableSkeleton } from "@/components/app/screen-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  useCreateTransaction,
-  useDeleteTransaction,
-  useTransactionSummary,
-  useTransactions,
-  useUpdateTransaction,
-  type Transaction,
-} from "@/lib/hooks";
-import { track } from "@/lib/analytics";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FirstRunHint, InlineErrorState, ScreenEmptyState, TableSkeleton } from "@/components/app/screen-states";
+import { useActivityTransactions, useCategories, useAccounts, useCreateTransaction, useDeleteTransaction, useTransactionSummary, useUpdateTransaction, type Transaction } from "@/lib/hooks";
+import { useCreateTransfer, exportTransactionsCsv } from "@/lib/hooks/use-pilot";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-const transactionSchema = z.object({
-  description: z.string().min(2, "Add a short description."),
-  amount: z.coerce.number().positive("Amount must be greater than zero."),
-  date: z.string().min(1, "Pick a transaction date."),
-  type: z.enum(["INCOME", "EXPENSE"]),
+const StatementImporter = dynamic(() => import("@/components/import/statement-importer").then((module) => module.StatementImporter), {
+  ssr: false,
+  loading: () => <div className="p-8 text-center text-sm text-taupe">Loading importer…</div>,
 });
 
-type TransactionFormValues = z.infer<typeof transactionSchema>;
+const PAGE_SIZE = 50;
+type TypeFilter = "ALL" | "INCOME" | "EXPENSE" | "TRANSFER" | "REFUND";
 
-type SortKey = "date" | "amount" | "description";
-type TypeFilter = "ALL" | "INCOME" | "EXPENSE";
-
-function exportTransactionsCsv(rows: Transaction[]) {
-  const header = ["Date", "Description", "Type", "Amount"];
-  const body = rows.map((row) =>
-    [formatDate(row.date), row.description, row.type, row.amount.toString()]
-      .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-      .join(","),
-  );
-  const csv = [header.join(","), ...body].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "vasoli-transactions.csv";
-  anchor.click();
-  URL.revokeObjectURL(url);
+function localDate() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 }
 
 export default function TransactionsPage() {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [sortKey, setSortKey] = useState<SortKey>("date");
-  const [page, setPage] = useState(1);
-  const [isImporterOpen, setImporterOpen] = useState(false);
-  const [isEditorOpen, setEditorOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [accountId, setAccountId] = useState("ALL");
+  const [categoryId, setCategoryId] = useState("ALL");
+  const categories = useCategories();
+  const [type, setType] = useState<TypeFilter>("ALL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [cursor, setCursor] = useState("");
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [refundSource, setRefundSource] = useState<Transaction | null>(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [form, setForm] = useState({ description: "", amount: "", date: localDate(), type: "EXPENSE" as "INCOME" | "EXPENSE", accountId: "" });
+  const [transfer, setTransfer] = useState({ fromAccountId: "", toAccountId: "", amount: "", date: localDate(), description: "Account transfer" });
+  const [exporting, setExporting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const transferIdempotencyKey = useRef<string | null>(null);
 
-  const transactionsQuery = useTransactions({
-    pageSize: 200,
-    type: typeFilter === "ALL" ? undefined : typeFilter,
-  });
-  const summaryQuery = useTransactionSummary();
+  const filters = useMemo(() => ({
+    categoryId: categoryId === "ALL" ? undefined : categoryId,
+    pageSize: PAGE_SIZE,
+    pageToken: cursor,
+    accountId: accountId === "ALL" ? undefined : accountId,
+    search: search.trim(),
+    type,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  }), [accountId, categoryId, cursor, endDate, search, startDate, type]);
+  const query = useActivityTransactions(filters);
+  const summary = useTransactionSummary();
+  const accounts = useAccounts();
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
   const deleteTransaction = useDeleteTransaction();
+  const createTransfer = useCreateTransfer();
+  const transactions = query.data?.transactions || [];
+  const accountNames = useMemo(() => new Map((accounts.data || []).map((account) => [account.id, account.accountName])), [accounts.data]);
+  const inrAccounts = (accounts.data || []).filter((account) => account.currency === "INR");
+  const hasFilters = Boolean(search.trim() || categoryId !== "ALL" || accountId !== "ALL" || type !== "ALL" || startDate || endDate);
 
-  const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      description: "",
-      amount: 0,
-      date: new Date().toISOString().slice(0, 10),
-      type: "EXPENSE",
-    },
-  });
-
-  const transactions = useMemo(() => transactionsQuery.data || [], [transactionsQuery.data]);
-  const pageSize = 8;
-
-  const filteredTransactions = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const next = transactions.filter((transaction) => {
-      if (!query) {
-        return true;
-      }
-
-      return [transaction.description, transaction.category?.name || "Uncategorised", transaction.type]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-
-    next.sort((left, right) => {
-      if (sortKey === "amount") {
-        return right.amount - left.amount;
-      }
-      if (sortKey === "description") {
-        return left.description.localeCompare(right.description);
-      }
-      return new Date(right.date).getTime() - new Date(left.date).getTime();
-    });
-
-    return next;
-  }, [search, sortKey, transactions]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
-  const pagedTransactions = filteredTransactions.slice((page - 1) * pageSize, page * pageSize);
-
-  useEffect(() => {
-    setPage((current) => Math.min(current, totalPages));
-  }, [totalPages]);
-
-  function openCreateDialog() {
-    setEditingTransaction(null);
-    form.reset({
-      description: "",
-      amount: 0,
-      date: new Date().toISOString().slice(0, 10),
-      type: "EXPENSE",
-    });
-    setEditorOpen(true);
+  function resetCursor() {
+    setCursor("");
+    setCursorHistory([]);
   }
 
-  function openEditDialog(transaction: Transaction) {
-    setEditingTransaction(transaction);
-    form.reset({
-      description: transaction.description,
-      amount: transaction.amount,
-      date: transaction.date.slice(0, 10),
-      type: transaction.type,
-    });
-    setEditorOpen(true);
-  }
-
-  async function handleSubmit(values: TransactionFormValues) {
-    if (editingTransaction) {
-      await updateTransaction.mutateAsync({
-        id: editingTransaction.id,
-        data: values,
-      });
-      track("transaction_updated", { type: values.type });
-    } else {
-      await createTransaction.mutateAsync(values);
-      track("transaction_created", { type: values.type });
+  async function saveTransaction(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+    const amount = Number(form.amount);
+    if (!form.description.trim() || !Number.isFinite(amount) || amount <= 0 || !form.date) {
+      setFormError("Enter a description, positive amount, and date.");
+      return;
     }
-
-    setEditorOpen(false);
-    form.reset();
+    try {
+      await createTransaction.mutateAsync({ description: form.description.trim(), amount, date: form.date, type: form.type, accountId: form.accountId || undefined });
+      setEditorOpen(false);
+    } catch {
+      setFormError("The transaction could not be saved. Check your connection and retry.");
+    }
   }
 
-  async function handleDelete(transaction: Transaction) {
+  async function saveTransfer(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+    const amount = Number(transfer.amount);
+    if (!transfer.fromAccountId || !transfer.toAccountId || transfer.fromAccountId === transfer.toAccountId || !Number.isFinite(amount) || amount <= 0) {
+      setFormError("Choose two different INR accounts and enter a positive amount.");
+      return;
+    }
+    try {
+      await createTransfer.mutateAsync({
+        fromAccountId: transfer.fromAccountId,
+        toAccountId: transfer.toAccountId,
+        amountPaise: BigInt(Math.round(amount * 100)),
+        date: new Date(`${transfer.date}T12:00:00+05:30`),
+        description: transfer.description.trim() || "Account transfer",
+        idempotencyKey: transferIdempotencyKey.current ?? (transferIdempotencyKey.current = crypto.randomUUID()),
+      });
+      transferIdempotencyKey.current = null;
+      setTransferOpen(false);
+    } catch {
+      setFormError("The transfer could not be recorded. Check the accounts and retry.");
+    }
+  }
+
+  async function saveRefund(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!refundSource) return;
+    const amount = Number(refundAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > refundSource.amount) {
+      setFormError("Enter a positive refund no greater than the original expense.");
+      return;
+    }
+    setFormError("");
+    try {
+      await createTransaction.mutateAsync({
+        description: `Refund: ${refundSource.description}`,
+        amount,
+        date: localDate(),
+        type: "REFUND",
+        accountId: refundSource.accountId,
+        refundOfTransactionId: refundSource.id,
+      });
+      setRefundSource(null);
+      setRefundAmount("");
+    } catch (cause) {
+      setFormError(cause instanceof Error ? cause.message : "The refund could not be recorded. Check prior refunds and retry.");
+    }
+  }
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const size = await exportTransactionsCsv({ accountId: filters.accountId, categoryId: filters.categoryId, type, search: filters.search, startDate, endDate });
+      toast.success("Activity export ready", { description: `${Math.round(size / 1024)} KB downloaded from the server.` });
+    } catch (cause) {
+      toast.error("Activity export failed", { description: cause instanceof Error ? cause.message : "Please retry." });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function removeTransaction(transaction: Transaction) {
+    if (!window.confirm(`Delete “${transaction.description}”? This cannot be undone.`)) return;
     await deleteTransaction.mutateAsync(transaction.id);
-    track("transaction_deleted", { type: transaction.type });
   }
 
-  function handleExport() {
-    exportTransactionsCsv(filteredTransactions);
-    toast.success("CSV export ready");
-    track("transactions_exported", { rows: filteredTransactions.length });
-  }
+  const empty = !query.isLoading && !query.isError && !transactions.length;
 
-  const hasNoTransactions = !transactionsQuery.isLoading && !transactions.length;
-  const hasError = Boolean(transactionsQuery.error || summaryQuery.error);
+  return <div className="space-y-6">
+    <section className="neo-surface-lg p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><h1 className="text-3xl font-bold text-ink">Activity</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-taupe">Review records from your accounts. Unassigned history stays visible until you assign it.</p></div>
+        <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => { setFormError(""); setImportOpen(true); }}><FileSpreadsheet className="size-4" />Import statement</Button><Button variant="outline" onClick={() => { setFormError(""); setTransferOpen(true); }} disabled={inrAccounts.length < 2}><ArrowLeftRight className="size-4" />Transfer</Button><Button onClick={() => { setForm({ description: "", amount: "", date: localDate(), type: "EXPENSE", accountId: "" }); setFormError(""); setEditorOpen(true); }}><Plus className="size-4" />Add transaction</Button></div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-neo border-brutal bg-paper-1 p-3"><p className="text-xs uppercase tracking-wide text-taupe">Month net flow</p><p className="mt-1 text-xl font-bold text-ink">{formatCurrency(summary.data?.balance || 0)}</p></div>
+        <div className="rounded-neo border-brutal bg-paper-1 p-3"><p className="text-xs uppercase tracking-wide text-taupe">Income this month</p><p className="mt-1 text-xl font-bold text-ink">{formatCurrency(summary.data?.totalIncome || 0)}</p></div>
+        <div className="rounded-neo border-brutal bg-paper-1 p-3"><p className="text-xs uppercase tracking-wide text-taupe">Expenses this month</p><p className="mt-1 text-xl font-bold text-ink">{formatCurrency(summary.data?.totalExpenses || 0)}</p></div>
+      </div>
+    </section>
 
-  return (
-    <div className="space-y-6">
-      <section className="neo-surface-lg p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Transactions</p>
-            <div>
-              <h1 className="text-4xl font-black">Clean ledger review, not a raw dump.</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-taupe">
-                Search, filter, import statements, add manual corrections, and export the current table without leaving the screen.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[1.25rem] border-brutal bg-paper-1 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-taupe">Balance</p>
-              <p className="mt-2 text-2xl font-black">{formatCurrency(summaryQuery.data?.balance || 0)}</p>
-            </div>
-            <div className="rounded-[1.25rem] border-brutal bg-paper-1 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-taupe">Income</p>
-              <p className="mt-2 text-2xl font-black">{formatCurrency(summaryQuery.data?.totalIncome || 0)}</p>
-            </div>
-            <div className="rounded-[1.25rem] border-brutal bg-paper-1 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-taupe">Expenses</p>
-              <p className="mt-2 text-2xl font-black">{formatCurrency(summaryQuery.data?.totalExpenses || 0)}</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <FirstRunHint title="Import one statement first, then reconcile account and balance details." description="A server-checked preview lets you see duplicates and skip individual rows before anything is committed." />
 
-      <FirstRunHint
-        title="Import one statement first, then use manual entries only for cleanup."
-        description="That keeps your ledger trustworthy and avoids turning the app into another spreadsheet you have to babysit."
-      />
+    <section className="neo-surface p-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <label className="relative xl:col-span-2"><span className="sr-only">Search activity</span><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-taupe" /><Input value={search} onChange={(event) => { setSearch(event.target.value); resetCursor(); }} placeholder="Search all activity" className="pl-9" /></label>
+        <label className="sr-only" htmlFor="activity-account">Filter by account</label><Select value={accountId} onValueChange={(value) => { setAccountId(value); resetCursor(); }}><SelectTrigger id="activity-account"><SelectValue placeholder="All accounts" /></SelectTrigger><SelectContent><SelectItem value="ALL">All accounts</SelectItem>{inrAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.accountName}</SelectItem>)}</SelectContent></Select>
+        <label className="sr-only" htmlFor="activity-type">Filter by type</label><Select value={type} onValueChange={(value: TypeFilter) => { setType(value); resetCursor(); }}><SelectTrigger id="activity-type"><SelectValue placeholder="All activity types" /></SelectTrigger><SelectContent><SelectItem value="ALL">All activity types</SelectItem><SelectItem value="INCOME">Income</SelectItem><SelectItem value="EXPENSE">Expense</SelectItem><SelectItem value="TRANSFER">Transfer</SelectItem><SelectItem value="REFUND">Refund</SelectItem></SelectContent></Select>
+        <label className="sr-only" htmlFor="activity-category">Filter by category</label><Select value={categoryId} onValueChange={(value) => { setCategoryId(value); resetCursor(); }}><SelectTrigger id="activity-category"><SelectValue placeholder="All categories" /></SelectTrigger><SelectContent><SelectItem value="ALL">All categories</SelectItem>{(categories.data || []).map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}</SelectContent></Select>
+        <div className="flex gap-2"><label className="sr-only" htmlFor="activity-start">From date</label><Input id="activity-start" type="date" aria-label="From date" value={startDate} onChange={(event) => { setStartDate(event.target.value); resetCursor(); }} /><label className="sr-only" htmlFor="activity-end">To date</label><Input id="activity-end" type="date" aria-label="To date" value={endDate} onChange={(event) => { setEndDate(event.target.value); resetCursor(); }} /></div>
+      </div>
+      <div className="mt-3 flex flex-wrap justify-between gap-3"><p className="text-xs text-taupe">Filters and search are applied on the server. Export downloads every matching record.</p><div className="flex gap-3"><Button variant="outline" size="sm" onClick={() => void exportCsv()} disabled={exporting}>{exporting ? "Exporting…" : <><Download className="size-4" />Export filtered CSV</>}</Button>{hasFilters ? <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setCategoryId("ALL"); setAccountId("ALL"); setType("ALL"); setStartDate(""); setEndDate(""); resetCursor(); }}>Clear filters</Button> : null}</div></div>
+    </section>
 
-      <section className="neo-surface p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-1 flex-col gap-3 md:flex-row">
-            <label className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-taupe" />
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search description, type, or category"
-                className="pl-9"
-                aria-label="Search transactions"
-              />
-            </label>
-            <Select value={typeFilter} onValueChange={(value: TypeFilter) => setTypeFilter(value)}>
-              <SelectTrigger className="w-full md:w-44">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All types</SelectItem>
-                <SelectItem value="INCOME">Income</SelectItem>
-                <SelectItem value="EXPENSE">Expense</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sortKey} onValueChange={(value: SortKey) => setSortKey(value)}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date">Newest first</SelectItem>
-                <SelectItem value="amount">Largest amount</SelectItem>
-                <SelectItem value="description">Description A-Z</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Dialog open={isImporterOpen} onOpenChange={setImporterOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <FileSpreadsheet className="size-4" />
-                  Import statement
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Import a statement</DialogTitle>
-                  <DialogDescription>Bring in a bank file, then refine the ledger from the table.</DialogDescription>
-                </DialogHeader>
-                <StatementImporter />
-              </DialogContent>
-            </Dialog>
-            <Dialog open={isEditorOpen} onOpenChange={setEditorOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={openCreateDialog}>
-                  <Plus className="size-4" />
-                  Add transaction
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-xl">
-                <DialogHeader>
-                  <DialogTitle>{editingTransaction ? "Edit transaction" : "Add transaction"}</DialogTitle>
-                  <DialogDescription>
-                    Use manual entries for corrections, one-off expenses, or missing income.
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...form}>
-                  <form className="space-y-5" onSubmit={form.handleSubmit(handleSubmit)}>
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Swiggy, salary, rent, refund..." />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid gap-5 md:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="amount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Amount (INR)</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="number" min="0" step="0.01" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="date"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Date</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="date" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="EXPENSE">Expense</SelectItem>
-                              <SelectItem value="INCOME">Income</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                      {editingTransaction ? "Save changes" : "Create transaction"}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline" onClick={handleExport} disabled={!filteredTransactions.length}>
-              <Download className="size-4" />
-              Export CSV
-            </Button>
-          </div>
-        </div>
-      </section>
+    {query.isError || summary.isError ? <InlineErrorState title="Activity could not be loaded" description="Retry the activity and monthly summary requests." onRetry={() => { void query.refetch(); void summary.refetch(); }} /> : null}
+    {query.isLoading ? <TableSkeleton rows={8} /> : empty ? <ScreenEmptyState icon={Search} title={hasFilters ? "No matching activity" : "No activity yet"} description={hasFilters ? "Adjust or clear the filters to see more records." : "Import a statement or add a transaction to begin."} cta={hasFilters ? { label: "Clear filters", onClick: () => { setSearch(""); setCategoryId("ALL"); setAccountId("ALL"); setType("ALL"); setStartDate(""); setEndDate(""); resetCursor(); } } : { label: "Import statement", onClick: () => setImportOpen(true) }} /> : <section className="neo-surface overflow-hidden">
+      <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Account</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-20"><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader><TableBody>
+        {transactions.map((transaction) => <TableRow key={transaction.id}>
+          <TableCell className="whitespace-nowrap">{formatDate(transaction.date)}</TableCell>
+          <TableCell><p className="font-semibold">{transaction.description}</p><p className="text-xs text-taupe">{transaction.category?.name || "Uncategorised"}{transaction.refundOfTransactionId ? " · linked refund" : ""}{transaction.transferGroupId ? ` · ${transaction.transferDirection === "OUT" ? "sent" : "received"} transfer` : ""}</p></TableCell>
+          <TableCell className="text-sm">{transaction.accountId ? accountNames.get(transaction.accountId) || "Account" : <span className="text-taupe">Unassigned</span>}</TableCell>
+          <TableCell><Badge variant={transaction.type === "INCOME" || transaction.type === "REFUND" ? "default" : "neutral"}>{transaction.type}</Badge></TableCell>
+          <TableCell className="text-right font-semibold tabular-nums">{transaction.type === "INCOME" || transaction.type === "REFUND" || transaction.transferDirection === "IN" ? "+" : transaction.transferGroupId ? "−" : ""}{formatCurrency(transaction.amount)}</TableCell>
+          <TableCell className="text-right">
+            {transaction.type === "EXPENSE" && !transaction.refundOfTransactionId ? <Button variant="ghost" size="icon" aria-label={`Record refund for ${transaction.description}`} onClick={() => { setRefundSource(transaction); setRefundAmount(""); setFormError(""); }}><RotateCcw className="size-4" /></Button> : null}
+            {!transaction.accountId && inrAccounts.length ? <label className="sr-only" htmlFor={`assign-${transaction.id}`}>Assign {transaction.description} to an account</label> : null}
+            {!transaction.accountId && inrAccounts.length ? <select id={`assign-${transaction.id}`} defaultValue="" aria-label={`Assign ${transaction.description} to an account`} onChange={async (event) => {
+              const nextAccountId = event.target.value;
+              if (!nextAccountId) return;
+              try { await updateTransaction.mutateAsync({ id: transaction.id, data: { accountId: nextAccountId } }); }
+              catch { toast.error("Account assignment failed", { description: "The record remains unassigned. Retry when connected." }); event.target.value = ""; }
+            }} className="mb-1 block max-w-32 rounded border-brutal bg-paper-1 px-2 py-1 text-xs"><option value="">Assign account…</option>{inrAccounts.map((account) => <option key={account.id} value={account.id}>{account.accountName}</option>)}</select> : null}
+            {!transaction.transferGroupId ? <Button variant="ghost" size="sm" onClick={() => void removeTransaction(transaction)}>Delete</Button> : <span className="text-xs text-taupe">Linked transfer</span>}
+          </TableCell>
+        </TableRow>)}
+      </TableBody></Table>
+      <div className="flex flex-col gap-3 border-t-brutal bg-paper-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-taupe">{transactions.length} records on this page · {cursorHistory.length + 1} page{cursorHistory.length === 0 ? "" : "s"} visited</p><div className="flex gap-2"><Button variant="outline" onClick={() => { const next = [...cursorHistory]; const previous = next.pop() || ""; setCursorHistory(next); setCursor(previous); }} disabled={!cursorHistory.length || query.isFetching}>Previous</Button><Button variant="outline" onClick={() => { const next = query.data?.nextPageToken; if (!next) return; setCursorHistory((history) => [...history, cursor]); setCursor(next); }} disabled={!query.data?.nextPageToken || query.isFetching}>Next</Button></div></div>
+    </section>}
 
-      {hasError ? (
-        <InlineErrorState
-          title="Transactions could not be loaded"
-          description="The ledger or summary query failed. Retry both requests from here."
-          onRetry={() => {
-            transactionsQuery.refetch();
-            summaryQuery.refetch();
-          }}
-        />
-      ) : null}
-
-      {transactionsQuery.isLoading ? (
-        <TableSkeleton rows={8} />
-      ) : hasNoTransactions ? (
-        <ScreenEmptyState
-          icon={ReceiptText}
-          title="No transactions yet"
-          description="Import a bank file or add your first transaction manually. The dashboard and zine become useful once the ledger has at least a little history."
-          cta={{ label: "Import statement", onClick: () => setImporterOpen(true) }}
-        />
-      ) : (
-        <section className="neo-surface overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="w-14" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pagedTransactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>{formatDate(transaction.date)}</TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-semibold">{transaction.description}</p>
-                      <p className="text-xs text-main-foreground/70">{transaction.category?.name || "Uncategorised"}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={transaction.type === "INCOME" ? "default" : "neutral"}>{transaction.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    <span className={transaction.type === "INCOME" ? "text-teal" : ""}>
-                      {transaction.type === "INCOME" ? "+" : "-"}
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Open actions for ${transaction.description}`}>
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(transaction)}>
-                          <ArrowDownUp className="size-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(transaction)}>
-                          <Trash2 className="size-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="flex flex-col gap-3 border-t-brutal bg-paper-1 px-4 py-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-taupe">
-              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredTransactions.length)} of{" "}
-              {filteredTransactions.length}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page === 1}>
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                disabled={page === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </section>
-      )}
-    </div>
-  );
+    <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Import a statement</DialogTitle><DialogDescription>Preview the server-parsed rows and choose exactly which records to commit.</DialogDescription></DialogHeader><StatementImporter /></DialogContent></Dialog>
+    <Dialog open={editorOpen} onOpenChange={setEditorOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Add transaction</DialogTitle><DialogDescription>Use a manual entry for a missed record or correction.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={saveTransaction}>
+      <label className="block text-sm font-medium">Description<input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium">Amount (₹)<input required type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label><label className="block text-sm font-medium">Date<input required type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label></div>
+      <label className="block text-sm font-medium">Type<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as "INCOME" | "EXPENSE" })} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2"><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></select></label>
+      <label className="block text-sm font-medium">Account<select value={form.accountId} onChange={(e) => setForm({ ...form, accountId: e.target.value })} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2"><option value="">Leave unassigned</option>{inrAccounts.map((account) => <option key={account.id} value={account.id}>{account.accountName}</option>)}</select></label>
+      {formError ? <p role="alert" className="text-sm text-danger">{formError}</p> : null}<Button type="submit" disabled={createTransaction.isPending}>{createTransaction.isPending ? "Saving…" : "Save transaction"}</Button>
+    </form></DialogContent></Dialog>
+    <Dialog open={transferOpen} onOpenChange={setTransferOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Record an account transfer</DialogTitle><DialogDescription>This creates linked debit and credit entries. It does not move money.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={saveTransfer}>
+      <label className="block text-sm font-medium">From account<select required value={transfer.fromAccountId} onChange={(e) => { transferIdempotencyKey.current = null; setTransfer({ ...transfer, fromAccountId: e.target.value }); }} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2"><option value="">Choose account</option>{inrAccounts.map((account) => <option key={account.id} value={account.id}>{account.accountName}</option>)}</select></label>
+      <label className="block text-sm font-medium">To account<select required value={transfer.toAccountId} onChange={(e) => { transferIdempotencyKey.current = null; setTransfer({ ...transfer, toAccountId: e.target.value }); }} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2"><option value="">Choose account</option>{inrAccounts.map((account) => <option key={account.id} value={account.id}>{account.accountName}</option>)}</select></label>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium">Amount (₹)<input required type="number" min="0.01" step="0.01" value={transfer.amount} onChange={(e) => { transferIdempotencyKey.current = null; setTransfer({ ...transfer, amount: e.target.value }); }} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label><label className="block text-sm font-medium">Date<input required type="date" value={transfer.date} onChange={(e) => { transferIdempotencyKey.current = null; setTransfer({ ...transfer, date: e.target.value }); }} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label></div>
+      <label className="block text-sm font-medium">Description<input value={transfer.description} onChange={(e) => { transferIdempotencyKey.current = null; setTransfer({ ...transfer, description: e.target.value }); }} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label>
+      {formError ? <p role="alert" className="text-sm text-danger">{formError}</p> : null}<Button type="submit" disabled={createTransfer.isPending}>{createTransfer.isPending ? "Recording…" : "Record transfer"}</Button>
+    </form></DialogContent></Dialog>
+    <Dialog open={Boolean(refundSource)} onOpenChange={(open) => { if (!open) setRefundSource(null); }}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Record a refund</DialogTitle><DialogDescription>This links the incoming refund to the original expense and assigns it to the same account.</DialogDescription></DialogHeader>{refundSource ? <form className="space-y-4" onSubmit={saveRefund}><p className="rounded-neo bg-paper-1 p-3 text-sm">{refundSource.description} · original {formatCurrency(refundSource.amount)}{refundSource.accountId ? ` · ${accountNames.get(refundSource.accountId) || "account"}` : " · unassigned"}</p><label className="block text-sm font-medium">Refund amount (₹)<input required type="number" min="0.01" max={refundSource.amount} step="0.01" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} className="mt-1 block w-full rounded-neo border-brutal bg-paper-1 px-3 py-2" /></label>{formError ? <p role="alert" className="text-sm text-danger">{formError}</p> : null}<Button type="submit" disabled={createTransaction.isPending}>{createTransaction.isPending ? "Saving…" : "Save linked refund"}</Button></form> : null}</DialogContent></Dialog>
+  </div>;
 }

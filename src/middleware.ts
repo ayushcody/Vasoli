@@ -2,6 +2,9 @@ import { updateSession } from "@/lib/supabase/middleware";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // TODO(security): Implement Edge-based rate limiting (e.g. @upstash/ratelimit)
+  // on sensitive routes (like /api/* and /auth/*) to protect against brute forcing
+  // before the request reaches the Next.js runtime or backend server.
   return await updateSession(request);
 }
 

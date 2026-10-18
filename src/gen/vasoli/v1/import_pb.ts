@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message vasoli.v1.ImportStatementRequest
@@ -16,8 +16,6 @@ export class ImportStatementRequest extends Message<ImportStatementRequest> {
   file = new Uint8Array(0);
 
   /**
-   * e.g., "generic_csv", "hdfc_statement"
-   *
    * @generated from field: string format = 2;
    */
   format = "";
@@ -170,6 +168,476 @@ export class FailedImportRow extends Message<FailedImportRow> {
 
   static equals(a: FailedImportRow | PlainMessage<FailedImportRow> | undefined, b: FailedImportRow | PlainMessage<FailedImportRow> | undefined): boolean {
     return proto3.util.equals(FailedImportRow, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.PreviewStatementRequest
+ */
+export class PreviewStatementRequest extends Message<PreviewStatementRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string file_name = 2;
+   */
+  fileName = "";
+
+  /**
+   * @generated from field: bytes file = 3;
+   */
+  file = new Uint8Array(0);
+
+  /**
+   * @generated from field: string format = 4;
+   */
+  format = "";
+
+  /**
+   * @generated from field: optional int64 opening_balance_paise = 5;
+   */
+  openingBalancePaise?: bigint;
+
+  /**
+   * @generated from field: optional int64 closing_balance_paise = 6;
+   */
+  closingBalancePaise?: bigint;
+
+  /**
+   * @generated from field: optional string mapping_json = 7;
+   */
+  mappingJson?: string;
+
+  constructor(data?: PartialMessage<PreviewStatementRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.PreviewStatementRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "file_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "file", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 4, name: "format", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "opening_balance_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
+    { no: 6, name: "closing_balance_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
+    { no: 7, name: "mapping_json", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PreviewStatementRequest {
+    return new PreviewStatementRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PreviewStatementRequest {
+    return new PreviewStatementRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PreviewStatementRequest {
+    return new PreviewStatementRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PreviewStatementRequest | PlainMessage<PreviewStatementRequest> | undefined, b: PreviewStatementRequest | PlainMessage<PreviewStatementRequest> | undefined): boolean {
+    return proto3.util.equals(PreviewStatementRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.NormalizedStatementRow
+ */
+export class NormalizedStatementRow extends Message<NormalizedStatementRow> {
+  /**
+   * @generated from field: int32 row_number = 1;
+   */
+  rowNumber = 0;
+
+  /**
+   * @generated from field: int64 amount_paise = 2;
+   */
+  amountPaise = protoInt64.zero;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp date = 4;
+   */
+  date?: Timestamp;
+
+  /**
+   * @generated from field: string type = 5;
+   */
+  type = "";
+
+  /**
+   * @generated from field: string merchant = 6;
+   */
+  merchant = "";
+
+  /**
+   * @generated from field: string payment_method = 7;
+   */
+  paymentMethod = "";
+
+  /**
+   * @generated from field: string bank_reference = 8;
+   */
+  bankReference = "";
+
+  constructor(data?: PartialMessage<NormalizedStatementRow>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.NormalizedStatementRow";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "row_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "amount_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "date", kind: "message", T: Timestamp },
+    { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "merchant", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "payment_method", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "bank_reference", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NormalizedStatementRow {
+    return new NormalizedStatementRow().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NormalizedStatementRow {
+    return new NormalizedStatementRow().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NormalizedStatementRow {
+    return new NormalizedStatementRow().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NormalizedStatementRow | PlainMessage<NormalizedStatementRow> | undefined, b: NormalizedStatementRow | PlainMessage<NormalizedStatementRow> | undefined): boolean {
+    return proto3.util.equals(NormalizedStatementRow, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.RejectedStatementRow
+ */
+export class RejectedStatementRow extends Message<RejectedStatementRow> {
+  /**
+   * @generated from field: int32 row_number = 1;
+   */
+  rowNumber = 0;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<RejectedStatementRow>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.RejectedStatementRow";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "row_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RejectedStatementRow {
+    return new RejectedStatementRow().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RejectedStatementRow {
+    return new RejectedStatementRow().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RejectedStatementRow {
+    return new RejectedStatementRow().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RejectedStatementRow | PlainMessage<RejectedStatementRow> | undefined, b: RejectedStatementRow | PlainMessage<RejectedStatementRow> | undefined): boolean {
+    return proto3.util.equals(RejectedStatementRow, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.DuplicateStatementRow
+ */
+export class DuplicateStatementRow extends Message<DuplicateStatementRow> {
+  /**
+   * @generated from field: int32 row_number = 1;
+   */
+  rowNumber = 0;
+
+  /**
+   * @generated from field: string existing_transaction_id = 2;
+   */
+  existingTransactionId = "";
+
+  constructor(data?: PartialMessage<DuplicateStatementRow>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.DuplicateStatementRow";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "row_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "existing_transaction_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DuplicateStatementRow {
+    return new DuplicateStatementRow().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DuplicateStatementRow {
+    return new DuplicateStatementRow().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DuplicateStatementRow {
+    return new DuplicateStatementRow().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DuplicateStatementRow | PlainMessage<DuplicateStatementRow> | undefined, b: DuplicateStatementRow | PlainMessage<DuplicateStatementRow> | undefined): boolean {
+    return proto3.util.equals(DuplicateStatementRow, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.ImportReconciliation
+ */
+export class ImportReconciliation extends Message<ImportReconciliation> {
+  /**
+   * @generated from field: optional int64 opening_balance_paise = 1;
+   */
+  openingBalancePaise?: bigint;
+
+  /**
+   * @generated from field: optional int64 closing_balance_paise = 2;
+   */
+  closingBalancePaise?: bigint;
+
+  /**
+   * @generated from field: int64 calculated_closing_balance_paise = 3;
+   */
+  calculatedClosingBalancePaise = protoInt64.zero;
+
+  /**
+   * @generated from field: optional int64 difference_paise = 4;
+   */
+  differencePaise?: bigint;
+
+  /**
+   * @generated from field: bool matches = 5;
+   */
+  matches = false;
+
+  constructor(data?: PartialMessage<ImportReconciliation>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.ImportReconciliation";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "opening_balance_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
+    { no: 2, name: "closing_balance_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
+    { no: 3, name: "calculated_closing_balance_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "difference_paise", kind: "scalar", T: 3 /* ScalarType.INT64 */, opt: true },
+    { no: 5, name: "matches", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ImportReconciliation {
+    return new ImportReconciliation().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ImportReconciliation {
+    return new ImportReconciliation().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ImportReconciliation {
+    return new ImportReconciliation().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ImportReconciliation | PlainMessage<ImportReconciliation> | undefined, b: ImportReconciliation | PlainMessage<ImportReconciliation> | undefined): boolean {
+    return proto3.util.equals(ImportReconciliation, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.PreviewStatementResponse
+ */
+export class PreviewStatementResponse extends Message<PreviewStatementResponse> {
+  /**
+   * @generated from field: string preview_token = 1;
+   */
+  previewToken = "";
+
+  /**
+   * @generated from field: repeated vasoli.v1.NormalizedStatementRow rows = 2;
+   */
+  rows: NormalizedStatementRow[] = [];
+
+  /**
+   * @generated from field: repeated vasoli.v1.RejectedStatementRow rejected = 3;
+   */
+  rejected: RejectedStatementRow[] = [];
+
+  /**
+   * @generated from field: repeated vasoli.v1.DuplicateStatementRow duplicates = 4;
+   */
+  duplicates: DuplicateStatementRow[] = [];
+
+  /**
+   * @generated from field: vasoli.v1.ImportReconciliation reconciliation = 5;
+   */
+  reconciliation?: ImportReconciliation;
+
+  /**
+   * @generated from field: int64 expires_at_unix = 6;
+   */
+  expiresAtUnix = protoInt64.zero;
+
+  constructor(data?: PartialMessage<PreviewStatementResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.PreviewStatementResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "rows", kind: "message", T: NormalizedStatementRow, repeated: true },
+    { no: 3, name: "rejected", kind: "message", T: RejectedStatementRow, repeated: true },
+    { no: 4, name: "duplicates", kind: "message", T: DuplicateStatementRow, repeated: true },
+    { no: 5, name: "reconciliation", kind: "message", T: ImportReconciliation },
+    { no: 6, name: "expires_at_unix", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PreviewStatementResponse {
+    return new PreviewStatementResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PreviewStatementResponse {
+    return new PreviewStatementResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PreviewStatementResponse {
+    return new PreviewStatementResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PreviewStatementResponse | PlainMessage<PreviewStatementResponse> | undefined, b: PreviewStatementResponse | PlainMessage<PreviewStatementResponse> | undefined): boolean {
+    return proto3.util.equals(PreviewStatementResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.CommitStatementImportRequest
+ */
+export class CommitStatementImportRequest extends Message<CommitStatementImportRequest> {
+  /**
+   * @generated from field: string preview_token = 1;
+   */
+  previewToken = "";
+
+  /**
+   * @generated from field: string idempotency_key = 2;
+   */
+  idempotencyKey = "";
+
+  /**
+   * @generated from field: repeated int32 skip_row_numbers = 3;
+   */
+  skipRowNumbers: number[] = [];
+
+  constructor(data?: PartialMessage<CommitStatementImportRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.CommitStatementImportRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "idempotency_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "skip_row_numbers", kind: "scalar", T: 5 /* ScalarType.INT32 */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CommitStatementImportRequest {
+    return new CommitStatementImportRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CommitStatementImportRequest {
+    return new CommitStatementImportRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CommitStatementImportRequest {
+    return new CommitStatementImportRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CommitStatementImportRequest | PlainMessage<CommitStatementImportRequest> | undefined, b: CommitStatementImportRequest | PlainMessage<CommitStatementImportRequest> | undefined): boolean {
+    return proto3.util.equals(CommitStatementImportRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.CommitStatementImportResponse
+ */
+export class CommitStatementImportResponse extends Message<CommitStatementImportResponse> {
+  /**
+   * @generated from field: string batch_id = 1;
+   */
+  batchId = "";
+
+  /**
+   * @generated from field: int32 created_count = 2;
+   */
+  createdCount = 0;
+
+  /**
+   * @generated from field: int32 duplicate_count = 3;
+   */
+  duplicateCount = 0;
+
+  /**
+   * @generated from field: int32 skipped_count = 4;
+   */
+  skippedCount = 0;
+
+  constructor(data?: PartialMessage<CommitStatementImportResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.CommitStatementImportResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "batch_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "created_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "duplicate_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "skipped_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CommitStatementImportResponse {
+    return new CommitStatementImportResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CommitStatementImportResponse {
+    return new CommitStatementImportResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CommitStatementImportResponse {
+    return new CommitStatementImportResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CommitStatementImportResponse | PlainMessage<CommitStatementImportResponse> | undefined, b: CommitStatementImportResponse | PlainMessage<CommitStatementImportResponse> | undefined): boolean {
+    return proto3.util.equals(CommitStatementImportResponse, a, b);
   }
 }
 

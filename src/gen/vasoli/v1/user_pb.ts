@@ -321,3 +321,218 @@ export class GetWealthAnalyticsResponse extends Message<GetWealthAnalyticsRespon
   }
 }
 
+/**
+ * @generated from message vasoli.v1.NotificationPreferences
+ */
+export class NotificationPreferences extends Message<NotificationPreferences> {
+  /**
+   * @generated from field: bool email_enabled = 1;
+   */
+  emailEnabled = false;
+
+  /**
+   * @generated from field: bool in_app_enabled = 2;
+   */
+  inAppEnabled = false;
+
+  /**
+   * @generated from field: bool push_enabled = 3;
+   */
+  pushEnabled = false;
+
+  /**
+   * @generated from field: int32 lead_days = 4;
+   */
+  leadDays = 0;
+
+  constructor(data?: PartialMessage<NotificationPreferences>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.NotificationPreferences";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "in_app_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "push_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "lead_days", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationPreferences {
+    return new NotificationPreferences().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationPreferences {
+    return new NotificationPreferences().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationPreferences {
+    return new NotificationPreferences().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationPreferences | PlainMessage<NotificationPreferences> | undefined, b: NotificationPreferences | PlainMessage<NotificationPreferences> | undefined): boolean {
+    return proto3.util.equals(NotificationPreferences, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetNotificationPreferencesRequest
+ */
+export class GetNotificationPreferencesRequest extends Message<GetNotificationPreferencesRequest> {
+  constructor(data?: PartialMessage<GetNotificationPreferencesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetNotificationPreferencesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationPreferencesRequest {
+    return new GetNotificationPreferencesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationPreferencesRequest {
+    return new GetNotificationPreferencesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationPreferencesRequest {
+    return new GetNotificationPreferencesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationPreferencesRequest | PlainMessage<GetNotificationPreferencesRequest> | undefined, b: GetNotificationPreferencesRequest | PlainMessage<GetNotificationPreferencesRequest> | undefined): boolean {
+    return proto3.util.equals(GetNotificationPreferencesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.GetNotificationPreferencesResponse
+ */
+export class GetNotificationPreferencesResponse extends Message<GetNotificationPreferencesResponse> {
+  /**
+   * @generated from field: vasoli.v1.NotificationPreferences preferences = 1;
+   */
+  preferences?: NotificationPreferences;
+
+  constructor(data?: PartialMessage<GetNotificationPreferencesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.GetNotificationPreferencesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "preferences", kind: "message", T: NotificationPreferences },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationPreferencesResponse {
+    return new GetNotificationPreferencesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationPreferencesResponse {
+    return new GetNotificationPreferencesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationPreferencesResponse {
+    return new GetNotificationPreferencesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationPreferencesResponse | PlainMessage<GetNotificationPreferencesResponse> | undefined, b: GetNotificationPreferencesResponse | PlainMessage<GetNotificationPreferencesResponse> | undefined): boolean {
+    return proto3.util.equals(GetNotificationPreferencesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.UpdateNotificationPreferencesRequest
+ */
+export class UpdateNotificationPreferencesRequest extends Message<UpdateNotificationPreferencesRequest> {
+  /**
+   * @generated from field: optional bool email_enabled = 1;
+   */
+  emailEnabled?: boolean;
+
+  /**
+   * @generated from field: optional bool in_app_enabled = 2;
+   */
+  inAppEnabled?: boolean;
+
+  /**
+   * @generated from field: optional bool push_enabled = 3;
+   */
+  pushEnabled?: boolean;
+
+  /**
+   * @generated from field: optional int32 lead_days = 4;
+   */
+  leadDays?: number;
+
+  constructor(data?: PartialMessage<UpdateNotificationPreferencesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.UpdateNotificationPreferencesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "in_app_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "push_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 4, name: "lead_days", kind: "scalar", T: 5 /* ScalarType.INT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationPreferencesRequest {
+    return new UpdateNotificationPreferencesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationPreferencesRequest {
+    return new UpdateNotificationPreferencesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationPreferencesRequest {
+    return new UpdateNotificationPreferencesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNotificationPreferencesRequest | PlainMessage<UpdateNotificationPreferencesRequest> | undefined, b: UpdateNotificationPreferencesRequest | PlainMessage<UpdateNotificationPreferencesRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationPreferencesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message vasoli.v1.UpdateNotificationPreferencesResponse
+ */
+export class UpdateNotificationPreferencesResponse extends Message<UpdateNotificationPreferencesResponse> {
+  /**
+   * @generated from field: vasoli.v1.NotificationPreferences preferences = 1;
+   */
+  preferences?: NotificationPreferences;
+
+  constructor(data?: PartialMessage<UpdateNotificationPreferencesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "vasoli.v1.UpdateNotificationPreferencesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "preferences", kind: "message", T: NotificationPreferences },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationPreferencesResponse {
+    return new UpdateNotificationPreferencesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationPreferencesResponse {
+    return new UpdateNotificationPreferencesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationPreferencesResponse {
+    return new UpdateNotificationPreferencesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNotificationPreferencesResponse | PlainMessage<UpdateNotificationPreferencesResponse> | undefined, b: UpdateNotificationPreferencesResponse | PlainMessage<UpdateNotificationPreferencesResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationPreferencesResponse, a, b);
+  }
+}
+

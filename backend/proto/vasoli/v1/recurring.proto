@@ -40,6 +40,7 @@ message UpdateRuleRequest {
   optional string merchant_norm = 6;
   optional string type = 7;
   optional string category_id = 8;
+  optional string account_id = 9;
 }
 
 message UpdateRuleResponse {
@@ -74,6 +75,7 @@ message CreateRuleFromCandidateRequest {
   google.protobuf.Timestamp next_due_date = 4;
   optional string type = 5;
   optional string category_id = 6;
+  optional string account_id = 7;
 }
 
 message RecurringRule {
@@ -88,6 +90,7 @@ message RecurringRule {
   optional google.protobuf.Timestamp cancelled_at = 9;
   string type = 10;
   optional string category_id = 11;
+  optional string account_id = 12;
 }
 
 message CreateRuleFromCandidateResponse {

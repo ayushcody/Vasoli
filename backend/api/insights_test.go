@@ -75,6 +75,27 @@ func TestInsightsServiceGetSummary(t *testing.T) {
 	}
 }
 
+func TestMonthRangeUsesIndiaCalendarBoundaries(t *testing.T) {
+	start, end := monthRange("2026-10", time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC))
+	wantStart := time.Date(2026, time.October, 1, 0, 0, 0, 0, indiaLocation)
+	wantEnd := time.Date(2026, time.November, 1, 0, 0, 0, 0, indiaLocation)
+	if !start.Equal(wantStart) || !end.Equal(wantEnd) {
+		t.Fatalf("month range = [%s, %s), want India-local [%s, %s)", start.Format(time.RFC3339), end.Format(time.RFC3339), wantStart.Format(time.RFC3339), wantEnd.Format(time.RFC3339))
+	}
+	firstDay, err := parseFlexibleDate("2026-10-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstDay.Before(start) || !firstDay.Before(end) {
+		t.Fatalf("first India calendar day %s should be included in October range", firstDay.Format(time.RFC3339))
+	}
+
+	fallback, _ := monthRange("invalid", time.Date(2026, time.October, 31, 20, 0, 0, 0, time.UTC)) // Nov 1 in India.
+	if fallback.Format("2006-01-02") != "2026-11-01" {
+		t.Fatalf("fallback month start = %s, want 2026-11-01 in India", fallback.In(indiaLocation).Format("2006-01-02"))
+	}
+}
+
 type summaryDBTX struct {
 	transactions []db.Transaction
 }

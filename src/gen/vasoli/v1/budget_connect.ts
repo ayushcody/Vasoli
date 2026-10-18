@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateBudgetRequest, CreateBudgetResponse, DeleteBudgetRequest, DeleteBudgetResponse, ListBudgetsRequest, ListBudgetsResponse, UpdateBudgetRequest, UpdateBudgetResponse } from "./budget_pb";
+import { CreateBudgetRequest, CreateBudgetResponse, DeleteBudgetRequest, DeleteBudgetResponse, GetSuggestedBudgetRequest, GetSuggestedBudgetResponse, ListBudgetsRequest, ListBudgetsResponse, UpdateBudgetRequest, UpdateBudgetResponse } from "./budget_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -46,6 +46,15 @@ export const BudgetService = {
       name: "DeleteBudget",
       I: DeleteBudgetRequest,
       O: DeleteBudgetResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc vasoli.v1.BudgetService.GetSuggestedBudget
+     */
+    getSuggestedBudget: {
+      name: "GetSuggestedBudget",
+      I: GetSuggestedBudgetRequest,
+      O: GetSuggestedBudgetResponse,
       kind: MethodKind.Unary,
     },
   }

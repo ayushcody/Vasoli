@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service AccountService {
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+  rpc UpdateAccount(UpdateAccountRequest) returns (UpdateAccountResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+
+  rpc CreateLiability(CreateLiabilityRequest) returns (CreateLiabilityResponse);
+  rpc ListLiabilities(ListLiabilitiesRequest) returns (ListLiabilitiesResponse);
+  rpc UpdateLiability(UpdateLiabilityRequest) returns (UpdateLiabilityResponse);
+  rpc DeleteLiability(DeleteLiabilityRequest) returns (DeleteLiabilityResponse);
+
+  rpc GetNetWorthSummary(GetNetWorthSummaryRequest) returns (GetNetWorthSummaryResponse);
+}
+
+message FinancialAccount {
+  string id = 1;
+  string account_type = 2; // CASH, SAVINGS, CURRENT, CREDIT_CARD, LOAN, BROKERAGE, MUTUAL_FUND, EPF, PPF, NPS, WALLET, OTHER
+  string institution_name = 3;
+  string account_name = 4;
+  optional string masked_account_number = 5;
+  int64 balance_paise = 6;
+  string currency = 7;
+  bool is_manual = 8;
+  optional string provider_name = 9;
+  optional string provider_account_id = 10;
+  optional google.protobuf.Timestamp last_synced_at = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional google.protobuf.Timestamp balance_as_of = 14;
+  string balance_source = 15;
+}
+
+message Liability {
+  string id = 1;
+  optional string account_id = 2;
+  string liability_type = 3; // CREDIT_CARD, PERSONAL_LOAN, EDUCATION_LOAN, HOME_LOAN, VEHICLE_LOAN, BNPL, OTHER
+  int64 principal_paise = 4;
+  int64 outstanding_paise = 5;
+  optional int32 interest_rate_bps = 6;
+  optional int64 emi_paise = 7;
+  optional int32 due_day = 8;
+  optional google.protobuf.Timestamp start_date = 9;
+  optional google.protobuf.Timestamp end_date = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateAccountRequest {
+  string account_type = 1;
+  string institution_name = 2;
+  string account_name = 3;
+  optional string masked_account_number = 4;
+  int64 balance_paise = 5;
+  string currency = 6;
+}
+
+message CreateAccountResponse {
+  FinancialAccount account = 1;
+}
+
+message ListAccountsRequest {}
+
+message ListAccountsResponse {
+  repeated FinancialAccount accounts = 1;
+}
+
+message UpdateAccountRequest {
+  string id = 1;
+  optional string account_type = 2;
+  optional string institution_name = 3;
+  optional string account_name = 4;
+  optional string masked_account_number = 5;
+  optional int64 balance_paise = 6;
+  optional string currency = 7;
+}
+
+message UpdateAccountResponse {
+  FinancialAccount account = 1;
+}
+
+message DeleteAccountRequest {
+  string id = 1;
+}
+
+message DeleteAccountResponse {}
+
+message CreateLiabilityRequest {
+  optional string account_id = 1;
+  string liability_type = 2;
+  int64 principal_paise = 3;
+  int64 outstanding_paise = 4;
+  optional int32 interest_rate_bps = 5;
+  optional int64 emi_paise = 6;
+  optional int32 due_day = 7;
+  optional google.protobuf.Timestamp start_date = 8;
+  optional google.protobuf.Timestamp end_date = 9;
+}
+
+message CreateLiabilityResponse {
+  Liability liability = 1;
+}
+
+message ListLiabilitiesRequest {}
+
+message ListLiabilitiesResponse {
+  repeated Liability liabilities = 1;
+}
+
+message UpdateLiabilityRequest {
+  string id = 1;
+  optional string account_id = 2;
+  optional string liability_type = 3;
+  optional int64 principal_paise = 4;
+  optional int64 outstanding_paise = 5;
+  optional int32 interest_rate_bps = 6;
+  optional int64 emi_paise = 7;
+  optional int32 due_day = 8;
+  optional google.protobuf.Timestamp start_date = 9;
+  optional google.protobuf.Timestamp end_date = 10;
+}
+
+message UpdateLiabilityResponse {
+  Liability liability = 1;
+}
+
+message DeleteLiabilityRequest {
+  string id = 1;
+}
+
+message DeleteLiabilityResponse {}
+
+message GetNetWorthSummaryRequest {}
+
+message GetNetWorthSummaryResponse {
+  int64 total_assets_paise = 1;
+  int64 total_liabilities_paise = 2;
+  int64 net_worth_paise = 3;
+}

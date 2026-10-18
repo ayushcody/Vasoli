@@ -1,48 +1,27 @@
-"use client";
-
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { publicRoutes } from "@/lib/navigation";
+import styles from "./site-chrome.module.css";
+
+const links = [
+  { title: "How it works", href: "/#how-it-works" },
+  { title: "Features", href: "/#features" },
+  { title: "About", href: "/about" },
+];
 
 export function SiteHeader() {
-  const pathname = usePathname();
-  const navItems = publicRoutes.filter((route) => !["/privacy", "/terms", "/status"].includes(route.href));
-
   return (
-    <header className="sticky top-0 z-40 border-b-brutal-thick bg-paper-1/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-6">
-        <Link href="/" className="font-serif text-2xl font-black tracking-tight text-ink">
-          Vasoli
+    <header className={styles.header}>
+      <div className={styles.headerInner}>
+        <Link href="/" className={styles.brand} aria-label="Vasoli home">
+          <Image src="/vasoli_logo.png" alt="Vasoli" width={180} height={60} priority />
         </Link>
-        <nav className="hidden items-center gap-2 md:flex">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "rounded-neo border-2 px-3 py-2 text-sm font-medium transition-all",
-                  isActive
-                    ? "border-border bg-main shadow-brutal-sm"
-                    : "border-transparent text-taupe hover:border-border hover:bg-paper-2",
-                )}
-              >
-                {item.title}
-              </Link>
-            );
-          })}
+        <nav className={styles.navigation} aria-label="Main navigation">
+          {links.map((item) => <Link key={item.href} href={item.href}>{item.title}</Link>)}
         </nav>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" className="hidden sm:inline-flex">
-            <Link href="/auth/signin">Sign in</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/app/dashboard">Go to app</Link>
-          </Button>
+        <div className={styles.headerActions}>
+          <Link className={styles.signIn} href="/auth/signin">Sign in</Link>
+          <Link className={styles.pilotButton} href="/contact">Pilot access</Link>
         </div>
       </div>
     </header>

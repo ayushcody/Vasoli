@@ -17,6 +17,9 @@ import { UserService } from "@/gen/vasoli/v1/user_connect";
 import { BudgetService } from "@/gen/vasoli/v1/budget_connect";
 import { GoalService } from "@/gen/vasoli/v1/goal_connect";
 import { ReminderService } from "@/gen/vasoli/v1/reminder_connect";
+import { AccountService } from "@/gen/vasoli/v1/account_connect";
+import { AchievementService } from "@/gen/vasoli/v1/achievement_connect";
+import { PilotService } from "@/gen/vasoli/v1/pilot_connect";
 
 export const transactionClient = createPromiseClient(TransactionService, transport);
 export const importClient = createPromiseClient(ImportService, transport);
@@ -28,3 +31,6 @@ export const userClient = createPromiseClient(UserService, transport);
 export const budgetClient = createPromiseClient(BudgetService, transport);
 export const goalClient = createPromiseClient(GoalService, transport);
 export const reminderClient = createPromiseClient(ReminderService, transport);
+export const accountClient = createPromiseClient(AccountService, transport);
+export const achievementClient = createPromiseClient(AchievementService, transport);
+export const pilotClient = createPromiseClient(PilotService, transport);

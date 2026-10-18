@@ -290,7 +290,7 @@ export default function GoalsPage() {
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-serif text-xl font-bold text-ink">🎯 New Goal</h3>
-                                <button onClick={() => setShowCreate(false)} className="text-taupe hover:text-ink">
+                                <button onClick={() => setShowCreate(false)} aria-label="Close goal creation modal" className="text-taupe hover:text-ink">
                                     <X size={20} />
                                 </button>
                             </div>

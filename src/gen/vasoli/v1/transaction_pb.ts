@@ -121,6 +121,26 @@ export class Transaction extends Message<Transaction> {
    */
   upiRef?: string;
 
+  /**
+   * @generated from field: optional string account_id = 22;
+   */
+  accountId?: string;
+
+  /**
+   * @generated from field: optional string transfer_group_id = 23;
+   */
+  transferGroupId?: string;
+
+  /**
+   * @generated from field: optional string transfer_direction = 24;
+   */
+  transferDirection?: string;
+
+  /**
+   * @generated from field: optional string refund_of_transaction_id = 25;
+   */
+  refundOfTransactionId?: string;
+
   constructor(data?: PartialMessage<Transaction>) {
     super();
     proto3.util.initPartial(data, this);
@@ -150,6 +170,10 @@ export class Transaction extends Message<Transaction> {
     { no: 19, name: "provenance", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 20, name: "tags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 21, name: "upi_ref", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 22, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 23, name: "transfer_group_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 24, name: "transfer_direction", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 25, name: "refund_of_transaction_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Transaction {
@@ -248,6 +272,16 @@ export class CreateTransactionRequest extends Message<CreateTransactionRequest> 
    */
   upiRef?: string;
 
+  /**
+   * @generated from field: optional string account_id = 16;
+   */
+  accountId?: string;
+
+  /**
+   * @generated from field: optional string refund_of_transaction_id = 17;
+   */
+  refundOfTransactionId?: string;
+
   constructor(data?: PartialMessage<CreateTransactionRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -271,6 +305,8 @@ export class CreateTransactionRequest extends Message<CreateTransactionRequest> 
     { no: 13, name: "provenance", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 14, name: "tags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 15, name: "upi_ref", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 16, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 17, name: "refund_of_transaction_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateTransactionRequest {
@@ -435,6 +471,16 @@ export class ListTransactionsRequest extends Message<ListTransactionsRequest> {
    */
   endDate?: Timestamp;
 
+  /**
+   * @generated from field: optional string account_id = 7;
+   */
+  accountId?: string;
+
+  /**
+   * @generated from field: string search = 8;
+   */
+  search = "";
+
   constructor(data?: PartialMessage<ListTransactionsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -449,6 +495,8 @@ export class ListTransactionsRequest extends Message<ListTransactionsRequest> {
     { no: 4, name: "category_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 5, name: "start_date", kind: "message", T: Timestamp, opt: true },
     { no: 6, name: "end_date", kind: "message", T: Timestamp, opt: true },
+    { no: 7, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListTransactionsRequest {
@@ -590,6 +638,16 @@ export class UpdateTransactionRequest extends Message<UpdateTransactionRequest> 
    */
   upiRef?: string;
 
+  /**
+   * @generated from field: optional string account_id = 16;
+   */
+  accountId?: string;
+
+  /**
+   * @generated from field: optional string refund_of_transaction_id = 17;
+   */
+  refundOfTransactionId?: string;
+
   constructor(data?: PartialMessage<UpdateTransactionRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -613,6 +671,8 @@ export class UpdateTransactionRequest extends Message<UpdateTransactionRequest> 
     { no: 13, name: "provenance", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 14, name: "tags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 15, name: "upi_ref", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 16, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 17, name: "refund_of_transaction_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateTransactionRequest {

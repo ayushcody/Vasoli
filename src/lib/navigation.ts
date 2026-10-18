@@ -18,6 +18,7 @@ import {
   Sparkles,
   UserPlus,
   WalletCards,
+  GraduationCap,
 } from "lucide-react";
 
 export type NavigationItem = {
@@ -36,7 +37,7 @@ function currentPeriod() {
 
 export const publicRoutes: NavigationItem[] = [
   { title: "Home", href: "/", icon: Home, description: "Marketing overview" },
-  { title: "Pricing", href: "/pricing", icon: WalletCards, description: "Plans and packaging" },
+  { title: "Pilot access", href: "/pricing", icon: WalletCards, description: "Free invite-only pilot" },
   { title: "About", href: "/about", icon: Sparkles, description: "Product story and principles" },
   { title: "Contact", href: "/contact", icon: LifeBuoy, description: "Support and contact options" },
   { title: "Privacy", href: "/privacy", icon: LockKeyhole, description: "Privacy policy" },
@@ -51,17 +52,17 @@ export const authRoutes: NavigationItem[] = [
 
 const appRouteRegistry: NavigationItem[] = [
   {
-    title: "Dashboard",
+    title: "Today",
     href: "/app/dashboard",
     icon: LayoutDashboard,
-    description: "Money cockpit and financial health",
+    description: "Payday position and next useful action",
     group: "Overview",
   },
   {
-    title: "Transactions",
+    title: "Activity",
     href: "/app/transactions",
     icon: CreditCard,
-    description: "Statement activity and transaction review",
+    description: "Imported and recorded transaction history",
     group: "Money",
   },
   {
@@ -111,6 +112,13 @@ const appRouteRegistry: NavigationItem[] = [
     href: "/app/marco",
     icon: Sparkles,
     description: "AI assistant workspace",
+    group: "Tools",
+  },
+  {
+    title: "Learn",
+    href: "/app/learn",
+    icon: GraduationCap,
+    description: "Calculators, money habits, and financial wellness",
     group: "Tools",
   },
   {

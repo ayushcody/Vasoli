@@ -1,33 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { StatementImporter } from "@/components/import/statement-importer";
 import { motion } from "framer-motion";
-import {
-    Smartphone, Shield, Tag, RotateCcw, Loader2, Sparkles,
-    CheckCircle2, Key, Zap
-} from "lucide-react";
-import { toast } from "sonner";
+import Link from "next/link";
+import { Shield, Wallet } from "lucide-react";
+import { AccountsManager } from "@/components/app/accounts-manager";
+import { AccountLifecycleControls } from "@/components/app/account-lifecycle-controls";
 
 export default function SettingsPage() {
-    const [gpayKey, setGpayKey] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem("vasoli_gpay_api_key") || "";
-        }
-        return "";
-    });
-    const [seeding, setSeeding] = useState(false);
-    const [seeded, setSeeded] = useState(false);
-
-    const saveGpayKey = () => {
-        localStorage.setItem("vasoli_gpay_api_key", gpayKey);
-        toast.success("Google Pay API key saved locally");
-    };
-
-    const handleDemoSeed = async () => {
-        toast.info("Demo seeding is currently disabled in gRPC mode.");
-    };
-
     const sections = [
         { delay: 0.1 },
         { delay: 0.2 },
@@ -40,11 +19,11 @@ export default function SettingsPage() {
         <div className="p-8 max-w-4xl">
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <h1 className="font-serif text-3xl font-bold text-ink mb-2">Settings</h1>
-                <p className="text-taupe mb-8">Manage imports, integrations, vault, and preferences.</p>
+                <p className="text-taupe mb-8">Manage accounts and review notification and connection status.</p>
             </motion.div>
 
             <div className="space-y-8">
-                {/* Statement Import */}
+                {/* Net Worth & Accounts */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -52,58 +31,15 @@ export default function SettingsPage() {
                     className="border-brutal-thick rounded-neo-md bg-paper-2 p-6 shadow-brutal"
                 >
                     <h2 className="font-serif text-xl font-bold text-ink mb-1 flex items-center gap-2">
-                        📥 Statement Import
+                        <Wallet size={20} /> Net Worth & Accounts
                     </h2>
                     <p className="text-taupe text-sm mb-5">
-                        Upload your bank statement CSV to auto-create transactions with provenance tracking.
+                        Track your assets, bank accounts, and liabilities to calculate your true net worth.
                     </p>
-                    <StatementImporter />
+                    <AccountsManager />
                 </motion.div>
 
-                {/* API Integrations */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: sections[1].delay }}
-                    className="border-brutal-thick rounded-neo-md bg-paper-2 p-6 shadow-brutal"
-                >
-                    <h2 className="font-serif text-xl font-bold text-ink mb-1 flex items-center gap-2">
-                        <Smartphone size={20} /> API Integrations
-                    </h2>
-                    <p className="text-taupe text-sm mb-5">
-                        Connect external payment APIs. Keys are stored in your browser&apos;s local storage. Do not store sensitive production credentials here.
-                    </p>
-
-                    <div className="space-y-4">
-                        {/* Google Pay API Key */}
-                        <div className="border-brutal rounded-neo bg-paper-1 p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Key size={14} className="text-cobalt" />
-                                <span className="text-sm font-medium text-ink">Google Pay API Key</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <input
-                                    type="password"
-                                    value={gpayKey}
-                                    onChange={(e) => setGpayKey(e.target.value)}
-                                    placeholder="Enter your Google Pay API key"
-                                    className="flex-1 border-brutal rounded-neo px-4 py-2.5 bg-paper-2 text-ink text-sm placeholder:text-taupe focus:outline-none focus:ring-2 focus:ring-ink"
-                                />
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={saveGpayKey}
-                                    className="border-brutal rounded-neo bg-cta text-ink px-4 py-2.5 text-sm font-semibold shadow-brutal-sm hover:shadow-brutal transition-all"
-                                >
-                                    Save
-                                </motion.button>
-                            </div>
-                            <p className="text-xs text-taupe mt-2">
-                                Used for UPI payment initiation. Never sent to our servers.
-                            </p>
-                        </div>
-                    </div>
-                </motion.div>
+                <AccountLifecycleControls />
 
                 {/* Receipt Vault */}
                 <motion.div
@@ -116,11 +52,11 @@ export default function SettingsPage() {
                         <Shield size={20} /> Receipt Vault
                     </h2>
                     <p className="text-taupe text-sm">
-                        Set or change your vault passphrase for encrypted receipt storage. Encryption uses AES-256-GCM and runs entirely in your browser.
+                        Unlock encrypted receipt previews in the <Link href="/app/receipts" className="font-semibold underline underline-offset-4">Receipt Vault</Link>. Encryption uses AES-256-GCM and runs entirely in your browser.
                     </p>
                 </motion.div>
 
-                {/* Categories */}
+                {/* Notifications */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -128,59 +64,69 @@ export default function SettingsPage() {
                     className="border-brutal-thick rounded-neo-md bg-paper-2 p-6 shadow-brutal"
                 >
                     <h2 className="font-serif text-xl font-bold text-ink mb-1 flex items-center gap-2">
-                        <Tag size={20} /> Categories
-                    </h2>
-                    <p className="text-taupe text-sm">
-                        Manage spending categories for better tracking. Default Indian categories are pre-loaded.
-                    </p>
-                </motion.div>
-
-                {/* Developer / Demo Mode */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: sections[4].delay }}
-                    className="border-brutal-thick rounded-neo-md bg-paper-2 p-6 shadow-brutal border-grape/30"
-                >
-                    <h2 className="font-serif text-xl font-bold text-ink mb-1 flex items-center gap-2">
-                        <Zap size={20} className="text-grape" /> Developer Mode
+                        🔔 Notifications
                     </h2>
                     <p className="text-taupe text-sm mb-5">
-                        Load your account with realistic demo data to explore all features of Vasoli instantly.
+                        Review which reminder channels are available for this workspace.
                     </p>
 
-                    <div className="border-brutal rounded-neo bg-grape/5 p-4">
-                        <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between border-brutal rounded-neo bg-paper-1 p-4">
                             <div>
-                                <h3 className="text-sm font-medium text-ink mb-1 flex items-center gap-2">
-                                    <Sparkles size={14} className="text-grape" />
-                                    Enable Demo Mode
-                                </h3>
-                                <p className="text-xs text-taupe">
-                                    Adds 30 transactions, 4 goals, and 3 receipts with Indian financial data.
-                                </p>
+                                <h3 className="text-sm font-medium text-ink mb-1">In-App Alerts</h3>
+                                <p className="text-xs text-taupe">Show badges and alerts inside Vasoli</p>
                             </div>
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={handleDemoSeed}
-                                disabled={seeding || seeded}
-                                className={`border-brutal-thick rounded-neo px-5 py-2.5 text-sm font-semibold flex items-center gap-2 shadow-brutal-sm transition-all ${seeded
-                                    ? "bg-success/20 text-success border-success/30"
-                                    : "bg-grape text-paper-1 hover:shadow-brutal"
-                                    } disabled:opacity-60`}
-                            >
-                                {seeding ? (
-                                    <><Loader2 size={16} className="animate-spin" /> Seeding...</>
-                                ) : seeded ? (
-                                    <><CheckCircle2 size={16} /> Demo Loaded!</>
-                                ) : (
-                                    <><Sparkles size={16} /> Load Demo Data</>
-                                )}
-                            </motion.button>
+                            <div className="text-sm text-taupe">Enabled by default</div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-brutal rounded-neo bg-paper-1 p-4">
+                            <div>
+                                <h3 className="text-sm font-medium text-ink mb-1">Email Reminders</h3>
+                                <p className="text-xs text-taupe">Receive a daily digest of due items</p>
+                            </div>
+                            <div className="text-sm text-taupe">{process.env.NEXT_PUBLIC_ENABLE_EMAIL_NOTIFICATIONS === 'true' ? 'Configured' : 'Disabled in environment'}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-brutal rounded-neo bg-paper-1 p-4 opacity-50">
+                            <div>
+                                <h3 className="text-sm font-medium text-ink mb-1">Push Notifications</h3>
+                                <p className="text-xs text-taupe">Mobile push alerts (Coming soon)</p>
+                            </div>
+                            <div className="text-xs font-semibold uppercase tracking-wider text-taupe bg-paper-2 px-2 py-1 rounded border-brutal border-taupe/30">Coming Soon</div>
                         </div>
                     </div>
                 </motion.div>
+
+                {/* External Integrations Placeholder */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: sections[3].delay + 0.1 }}
+                    className="border-brutal-thick rounded-neo-md bg-paper-2 p-6 shadow-brutal"
+                >
+                    <h2 className="font-serif text-xl font-bold text-ink mb-1 flex items-center gap-2">
+                        🔗 Connected Accounts
+                    </h2>
+                    <p className="text-taupe text-sm mb-5">
+                        Live bank integrations and broker sync via the Account Aggregator framework are currently in development.
+                    </p>
+
+                    <div className="bg-alert-yellow/20 border-brutal border-alert-yellow rounded-neo p-4 mb-4 text-sm text-ink flex items-start gap-3">
+                        <div className="mt-0.5 text-alert-yellow">🔒</div>
+                        <div>
+                            <strong>Privacy-First Guarantee:</strong> When released, Vasoli will use explicit, time-bound consent to request read-only data. We will never sell your data or request your bank passwords.
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-brutal rounded-neo bg-paper-1 p-4 opacity-50">
+                        <div>
+                            <h3 className="text-sm font-medium text-ink mb-1">India Account Aggregator (AA)</h3>
+                            <p className="text-xs text-taupe">Auto-sync transactions and balances safely</p>
+                        </div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-taupe bg-paper-2 px-2 py-1 rounded border-brutal border-taupe/30">Coming Soon</div>
+                    </div>
+                </motion.div>
+
             </div>
         </div>
     );

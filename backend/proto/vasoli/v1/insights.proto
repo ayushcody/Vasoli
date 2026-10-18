@@ -9,6 +9,9 @@ service InsightsService {
   rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse);
   rpc GetZine(GetZineRequest) returns (GetZineResponse);
   rpc GetHealthScore(GetHealthScoreRequest) returns (GetHealthScoreResponse);
+  rpc GetSpendingAnalytics(GetSpendingAnalyticsRequest) returns (GetSpendingAnalyticsResponse);
+  rpc GetMerchantInsights(GetMerchantInsightsRequest) returns (GetMerchantInsightsResponse);
+  rpc GetEmergencyFundProgress(GetEmergencyFundProgressRequest) returns (GetEmergencyFundProgressResponse);
 }
 
 message GetHealthScoreRequest {}
@@ -81,4 +84,61 @@ message GetZineResponse {
   int32 streak = 7;
   int64 saved_vs_prev_paise = 8;
   optional LeakInsight leak = 9;
+}
+
+message GetSpendingAnalyticsRequest {
+  string month_year = 1; // Format: YYYY-MM
+}
+
+message CategoryTrend {
+  string category_name = 1;
+  string category_icon = 2;
+  int64 current_paise = 3;
+  int64 previous_paise = 4;
+  int64 difference_paise = 5;
+}
+
+message GetSpendingAnalyticsResponse {
+  repeated CategoryTrend trends = 1;
+  repeated CategoryInsight top_categories = 2;
+}
+
+message GetMerchantInsightsRequest {
+  string month_year = 1; // Format: YYYY-MM
+}
+
+message MerchantTrend {
+  string merchant = 1;
+  int64 current_paise = 2;
+  int64 previous_paise = 3;
+  int32 current_count = 4;
+  int64 difference_paise = 5;
+}
+
+message SavingsOpportunity {
+  string type = 1; // e.g. "HIGH_FREQUENCY_SMALL_SPENDS", "SUBSCRIPTION_LIKE"
+  string merchant = 2;
+  string description = 3;
+  int64 potential_savings_paise = 4;
+}
+
+message GetMerchantInsightsResponse {
+  repeated MerchantTrend trends = 1;
+  repeated MerchantTrend top_merchants = 2;
+  repeated SavingsOpportunity savings_opportunities = 3;
+}
+
+message GetEmergencyFundProgressRequest {}
+
+message EmergencyFundProgress {
+  int64 current_balance_paise = 1;
+  int64 average_monthly_expense_paise = 2;
+  double months_of_runway = 3;
+  int64 target_1_month_paise = 4;
+  int64 target_3_month_paise = 5;
+  int64 target_6_month_paise = 6;
+}
+
+message GetEmergencyFundProgressResponse {
+  EmergencyFundProgress progress = 1;
 }

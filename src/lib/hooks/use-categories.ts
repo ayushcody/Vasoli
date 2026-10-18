@@ -31,5 +31,6 @@ export function useCategories() {
       const response = await categoryClient.listCategories({});
       return response.categories.map(mapCategory);
     },
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
 }

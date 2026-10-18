@@ -5,6 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"vasoli-backend/internal/db"
@@ -12,7 +13,8 @@ import (
 )
 
 type GoalService struct {
-	DB *db.Queries
+	DB   *db.Queries
+	Pool *pgxpool.Pool
 }
 
 func (s *GoalService) CreateGoal(ctx context.Context, req *connect.Request[pb.CreateGoalRequest]) (*connect.Response[pb.CreateGoalResponse], error) {
@@ -41,6 +43,15 @@ func (s *GoalService) CreateGoal(ctx context.Context, req *connect.Request[pb.Cr
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+
+	// Trigger achievements
+	go func(u pgtype.UUID) {
+		_ = awardAchievementIfEligible(context.Background(), s.DB, u, "FIRST_GOAL")
+		// if goal name is emergency fund, trigger that too
+		if req.Msg.Name == "Emergency Fund" || req.Msg.Name == "Emergency" {
+			_ = awardAchievementIfEligible(context.Background(), s.DB, u, "EMERGENCY_STARTER")
+		}
+	}(userUUID)
 
 	return connect.NewResponse(&pb.CreateGoalResponse{
 		Goal: s.mapGoal(goal),
@@ -82,6 +93,11 @@ func (s *GoalService) ListGoals(ctx context.Context, req *connect.Request[pb.Lis
 
 	goals, err := s.DB.ListGoals(ctx, userUUID)
 	if err != nil {
+		if isMockMode() {
+			return connect.NewResponse(&pb.ListGoalsResponse{
+				Goals: getMockGoals(),
+			}), nil
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -151,9 +167,16 @@ func (s *GoalService) AddContribution(ctx context.Context, req *connect.Request[
 	}
 
 	var userUUID pgtype.UUID
-	_ = userUUID.Scan(userID)
+	if err := userUUID.Scan(userID); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
 	var goalUUID pgtype.UUID
-	_ = goalUUID.Scan(req.Msg.GoalId)
+	if err := goalUUID.Scan(req.Msg.GoalId); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if _, err := s.DB.GetGoal(ctx, db.GetGoalParams{ID: goalUUID, UserID: userUUID}); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
 
 	// Add contribution
 	_, err = s.DB.AddGoalContribution(ctx, db.AddGoalContributionParams{
@@ -196,4 +219,3 @@ func (s *GoalService) mapGoal(g db.Goal) *pb.Goal {
 		Active:             g.Active,
 	}
 }
-

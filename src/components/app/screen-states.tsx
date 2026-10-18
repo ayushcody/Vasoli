@@ -79,15 +79,36 @@ export function InlineErrorState({
 export function FirstRunHint({
   title,
   description,
+  cta,
 }: {
   title: string;
   description: string;
+  cta?: {
+    label: string;
+    onClick?: () => void;
+    href?: string;
+  };
 }) {
   return (
-    <div className="rounded-[1.25rem] border-brutal bg-mustard/35 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/70">First run hint</p>
-      <p className="mt-2 font-semibold text-ink">{title}</p>
-      <p className="mt-1 text-sm text-ink/75">{description}</p>
+    <div className="rounded-[1.25rem] border-brutal bg-mustard/35 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/70">First run hint</p>
+        <p className="mt-2 font-semibold text-ink">{title}</p>
+        <p className="mt-1 text-sm text-ink/75">{description}</p>
+      </div>
+      {cta && (
+        <div className="shrink-0">
+          {cta.href ? (
+            <Button asChild variant="outline" className="bg-paper-1 hover:bg-paper-2">
+              <Link href={cta.href}>{cta.label}</Link>
+            </Button>
+          ) : (
+            <Button variant="outline" className="bg-paper-1 hover:bg-paper-2" onClick={cta.onClick}>
+              {cta.label}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

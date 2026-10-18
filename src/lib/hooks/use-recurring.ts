@@ -17,6 +17,7 @@ export interface RecurringTransaction {
   isActive: boolean;
   userId: string;
   categoryId?: string;
+  accountId?: string;
   category?: {
     id: string;
     name: string;
@@ -36,6 +37,7 @@ export interface CreateRecurringInput {
   endDate?: string;
   occurrences?: number;
   categoryId?: string;
+  accountId?: string;
 }
 
 const RECURRING_KEY = 'recurring';
@@ -52,6 +54,7 @@ function mapRecurring(r: any): RecurringTransaction {
     isActive: r.active,
     userId: r.userId,
     categoryId: r.categoryId,
+    accountId: r.accountId || undefined,
   };
 }
 
@@ -91,11 +94,13 @@ export function useCreateRecurring() {
         nextDueDate: Timestamp.fromDate(new Date(data.startDate)),
         type: data.type,
         categoryId: data.categoryId,
+        accountId: data.accountId,
       });
       return mapRecurring(res.rule);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [RECURRING_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["pilot", "payday-plan"] });
       toast.success('Recurring transaction created');
     },
     onError: (error) => {
@@ -117,12 +122,14 @@ export function useUpdateRecurring() {
         cadence: data.frequency?.toLowerCase(),
         type: data.type,
         categoryId: data.categoryId,
+        accountId: data.accountId,
       });
       return mapRecurring(res.rule);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [RECURRING_KEY] });
       queryClient.invalidateQueries({ queryKey: [RECURRING_KEY, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["pilot", "payday-plan"] });
       toast.success('Recurring transaction updated');
     },
     onError: (error) => {
@@ -185,6 +192,24 @@ export function useUpcomingRecurring() {
         recurring: mapRecurring(r),
         nextOccurrence: r.nextDueDate?.toDate().toISOString(),
         daysUntil: r.nextDueDate ? Math.max(0, Math.ceil((r.nextDueDate.toDate().getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : undefined,
+      }));
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useRecurringCandidates() {
+  return useQuery({
+    queryKey: [RECURRING_KEY, 'candidates'],
+    queryFn: async () => {
+      const res = await recurringClient.listCandidates({});
+      return res.candidates.map(c => ({
+        merchantNorm: c.merchantNorm,
+        amount: Number(c.amountPaiseBucket) / 100,
+        inferredCadence: c.inferredCadence,
+        confidenceScore: c.confidenceScore,
+        suggestedNextDue: c.suggestedNextDue?.toDate().toISOString() || "",
+        occurrenceCount: c.occurrenceCount,
       }));
     },
     staleTime: 1000 * 60 * 5,

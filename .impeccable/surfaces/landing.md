@@ -1,0 +1,13 @@
+# Landing page surface brief
+
+- **Mode:** Persuade.
+- **Audience:** Salaried people in India considering an invite-only personal-finance pilot.
+- **Goal:** Explain the recorded-data payday planning workflow and invite prospects to ask about pilot access; keep sign-in available for invited users.
+- **Visual composition:** The full-color existing wordmark leads a warm paper, ink, and mustard public page. A short left-aligned headline and access/sign-in actions sit beside an editable example payday plan. A three-part journey connects importing/reconciling, recording commitments, and choosing a reserve. A direct feature list links to Activity, Budgets, Goals, Receipts, and optional Marco. A limitations section and final invitation close the page.
+- **Interaction:** Visitors can edit illustrative current cash, recorded bills, an everyday-spending estimate, and a goal reserve, then select the point in the sequence to inspect. All amounts are explicitly illustrative; the remainder subtracts only those four entered examples.
+- **Motion:** A short GSAP hero entrance, selected amount feedback, and a desktop scroll-linked journey line. The page is naturally scrolling with no pinned scenes; the journey remains static and clear without scripts and reduced-motion preferences suppress movement.
+- **Claims:** State that this is a private pilot, imports are manual, and there is no bank connection, payment, or money movement. Explain that unrecorded daily spending is excluded and forecasts may miss unrecorded information.
+- **Preserve:** Existing wordmark at readable scale, working `/auth/signin` and `/contact` routes, shared site shell, and the app's warm paper, ink, and mustard identity.
+- **Review evidence:** Desktop and 375px mobile screenshots showed a clear hierarchy, cohesive page palette, and a naturally stacked mobile layout. The floating plant avatar in those captures is a browser overlay, not page content.
+- **Resolved review findings:** The hero now makes “Ask about pilot access” the primary `/contact` action and labels sign-in for already invited users. A negative example remainder is labeled “Shortfall in this example.” The existing colorful wordmark stays per the explicit brand direction. The mobile headline's three-line wrap is an intentional design choice. Feature-row hover now changes only its background, avoiding a padding shift.
+- **Deferred scope:** No further mobile headline polishing or brand replacement is planned in this pass. Calculator labels and controls remain editable examples; review only flagged a future narrow-width/zoom check, not an observed failure in the supplied mobile capture.

@@ -2,8 +2,12 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"time"
+
+	"connectrpc.com/connect"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -21,13 +25,37 @@ func RequestIDFromContext(ctx context.Context) string {
 	return requestID
 }
 
-func LogRPCError(ctx context.Context, method string, err error) {
-	userID, _ := UserIDFromContext(ctx)
-	slog.Error("rpc handler error",
-		"method", method,
-		"user_id", userID,
+// Standardized Error Constructors for ConnectRPC
+func ErrorUnauthenticated(msg string) error {
+	return connect.NewError(connect.CodeUnauthenticated, errors.New(msg))
+}
+
+func ErrorInvalidArgument(msg string) error {
+	return connect.NewError(connect.CodeInvalidArgument, errors.New(msg))
+}
+
+func ErrorNotFound(msg string) error {
+	return connect.NewError(connect.CodeNotFound, errors.New(msg))
+}
+
+func ErrorPermissionDenied(msg string) error {
+	return connect.NewError(connect.CodePermissionDenied, errors.New(msg))
+}
+
+func ErrorInternal(msg string) error {
+	// We usually want to hide the raw underlying SQL/system error from the client,
+	// but the interceptor will log the exact issue if we wrap it properly or just log before returning.
+	// We return a safe generic string for Internal.
+	return connect.NewError(connect.CodeInternal, errors.New(msg))
+}
+
+// logDuration logs the execution time of an operation cleanly
+func logDuration(ctx context.Context, operation string, start time.Time) {
+	duration := time.Since(start)
+	slog.Info("Operation timing",
+		"operation", operation,
+		"duration", duration,
 		"request_id", RequestIDFromContext(ctx),
-		"error", err,
 	)
 }
 

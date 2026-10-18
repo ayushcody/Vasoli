@@ -182,9 +182,11 @@ func (f transactionServiceDBTX) Query(_ context.Context, sql string, args ...int
 	categoryID := args[2].(pgtype.UUID)
 	startDate := args[3].(pgtype.Timestamptz)
 	endDate := args[4].(pgtype.Timestamptz)
-	cursorDate := args[5].(pgtype.Timestamptz)
-	cursorID := args[6].(pgtype.UUID)
-	limitCount := args[7].(int32)
+	accountID := args[5].(pgtype.UUID)
+	search := args[6].(pgtype.Text)
+	cursorDate := args[7].(pgtype.Timestamptz)
+	cursorID := args[8].(pgtype.UUID)
+	limitCount := args[9].(int32)
 
 	filtered := make([]db.Transaction, 0, len(f.transactions))
 	for _, tx := range f.transactions {
@@ -201,6 +203,12 @@ func (f transactionServiceDBTX) Query(_ context.Context, sql string, args ...int
 			continue
 		}
 		if endDate.Valid && !tx.Date.Time.Before(endDate.Time) {
+			continue
+		}
+		if accountID.Valid && UUIDToString(tx.AccountID) != UUIDToString(accountID) {
+			continue
+		}
+		if search.Valid && !strings.Contains(strings.ToLower(tx.Description), strings.ToLower(search.String)) && !strings.Contains(strings.ToLower(tx.MerchantNorm), strings.ToLower(search.String)) {
 			continue
 		}
 		if cursorDate.Valid {
@@ -254,5 +262,32 @@ func newTestTransaction(id string, userID string, date time.Time, description st
 		IsRecurring:  pgtype.Bool{Bool: false, Valid: true},
 		CreatedAt:    pgtype.Timestamptz{Time: date, Valid: true},
 		UpdatedAt:    pgtype.Timestamptz{Time: date, Valid: true},
+	}
+}
+
+func TestTransferTransactionsCannotBypassAtomicTransferEndpoint(t *testing.T) {
+	if err := validateTransactionType("TRANSFER"); err == nil {
+		t.Fatal("ordinary transaction creation must reject TRANSFER")
+	}
+	groupID := StringToUUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	if err := rejectPairedTransferMutation(db.Transaction{TransferGroupID: groupID}); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("grouped transfer mutation code=%v, want invalid argument", connect.CodeOf(err))
+	}
+	if err := rejectPairedTransferMutation(db.Transaction{}); err != nil {
+		t.Fatalf("ordinary transaction unexpectedly rejected: %v", err)
+	}
+}
+
+func TestExpenseUpdateCannotInvalidateRecordedRefunds(t *testing.T) {
+	if err := validateExpenseRefundAggregate(5000, 4999, nil); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("smaller expense amount code=%v", connect.CodeOf(err))
+	}
+	income := "INCOME"
+	if err := validateExpenseRefundAggregate(5000, 10000, &income); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expense type change code=%v", connect.CodeOf(err))
+	}
+	expense := "EXPENSE"
+	if err := validateExpenseRefundAggregate(5000, 5000, &expense); err != nil {
+		t.Fatalf("valid refunded expense update rejected: %v", err)
 	}
 }

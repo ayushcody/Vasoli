@@ -39,26 +39,26 @@ interface Message {
 const SUGGESTIONS = [
     {
         icon: TrendingUp,
-        label: "Safe to spend",
-        prompt: "What's my safe-to-spend today?",
+        label: "Can I spend?",
+        prompt: "Can I spend ₹2,000 this weekend?",
         color: "bg-teal/15 text-teal",
     },
     {
         icon: Sparkles,
-        label: "Spending spike",
-        prompt: "Why did my spending spike this week?",
+        label: "Recent changes",
+        prompt: "What changed this month?",
         color: "bg-cta/15 text-cta",
     },
     {
         icon: Receipt,
-        label: "Monthly report",
-        prompt: "Generate a monthly report I can share.",
+        label: "Money leaks",
+        prompt: "Find my money leaks",
         color: "bg-grape/15 text-grape",
     },
     {
         icon: CalendarClock,
         label: "Upcoming bills",
-        prompt: "What bills are coming up in the next 10 days?",
+        prompt: "What bill is coming next?",
         color: "bg-cobalt/15 text-cobalt",
     },
 ];
@@ -71,6 +71,9 @@ const TOOL_LABELS: Record<string, string> = {
     get_goals: "Looking at your goals…",
     get_receipts_lifecycle: "Checking receipts…",
     get_sync_confidence: "Checking data freshness…",
+    get_spending_analytics: "Analyzing spending…",
+    get_upcoming_reminders: "Checking reminders…",
+    get_health_score: "Calculating health score…",
 };
 
 // ─── Main Page ────────────────────────────────────────────────
@@ -296,6 +299,10 @@ export default function MarcoPage() {
             sendMessage();
         }
     };
+
+    if (process.env.NEXT_PUBLIC_MARCO_ENABLED !== "true") {
+        return <section className="neo-surface p-6"><h1 className="text-3xl font-bold">Marco is optional</h1><p className="mt-3 max-w-xl text-sm leading-6 text-taupe">AI chat is disabled for this pilot configuration. Your records, imports, bills and payday plan work independently.</p><a className="mt-5 inline-block font-semibold underline" href="/app/dashboard">Review your payday plan</a></section>;
+    }
 
     // ─── Render ─────────────────────────────────────────────────
     return (
