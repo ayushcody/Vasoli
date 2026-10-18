@@ -7,32 +7,43 @@ import "google/protobuf/timestamp.proto";
 
 service GoalService {
   rpc CreateGoal(CreateGoalRequest) returns (CreateGoalResponse);
+  rpc GetGoal(GetGoalRequest) returns (GetGoalResponse);
   rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
   rpc UpdateGoal(UpdateGoalRequest) returns (UpdateGoalResponse);
   rpc DeleteGoal(DeleteGoalRequest) returns (DeleteGoalResponse);
   rpc AddContribution(AddContributionRequest) returns (AddContributionResponse);
 }
 
+message GetGoalRequest {
+  string id = 1;
+}
+
+message GetGoalResponse {
+  Goal goal = 1;
+}
+
 message Goal {
   string id = 1;
   string name = 2;
   optional string description = 3;
-  double target_amount = 4;
-  double current_amount = 5;
-  optional google.protobuf.Timestamp deadline = 6;
+  int64 target_amount_paise = 4;
+  int64 current_amount_paise = 5;
+  optional google.protobuf.Timestamp due_date = 6;
   string status = 7; // ACTIVE, COMPLETED, PAUSED
   optional string color = 8;
   optional string icon = 9;
   string user_id = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
+  string cadence = 13;
+  bool active = 14;
 }
 
 message CreateGoalRequest {
   string name = 1;
   optional string description = 2;
-  double target_amount = 3;
-  optional google.protobuf.Timestamp deadline = 4;
+  int64 target_amount_paise = 3;
+  optional google.protobuf.Timestamp due_date = 4;
   optional string color = 5;
   optional string icon = 6;
 }
@@ -50,7 +61,7 @@ message ListGoalsResponse {
 message UpdateGoalRequest {
   string id = 1;
   optional string name = 2;
-  optional double target_amount = 3;
+  optional int64 target_amount_paise = 3;
   optional string status = 4;
 }
 
@@ -66,7 +77,7 @@ message DeleteGoalResponse {}
 
 message AddContributionRequest {
   string goal_id = 1;
-  double amount = 2;
+  int64 amount_paise = 2;
   optional string note = 3;
 }
 

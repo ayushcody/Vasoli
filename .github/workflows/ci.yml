@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  frontend:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Deployment configuration guard tests
+        run: node --test scripts/pilot/deployment-preflight.test.mjs
+
+      - name: Build
+        # Expose dummy values for build to pass without real Supabase connection
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy"
+        run: npm run build
+
+  backend:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache-dependency-path: backend/go.sum
+
+      - name: Download Go modules
+        working-directory: ./backend
+        run: go mod download
+
+      - name: Run Go tests
+        working-directory: ./backend
+        run: go test ./...
+
+      - name: Build Go server
+        working-directory: ./backend
+        run: go build -o bin/server ./cmd/server
+
+  generation:
+    name: Proto & SQLC Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+
+      - name: Install sqlc
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0
+
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.59.0
+
+      - name: Check canonical schema fingerprint
+        run: node scripts/pilot/build-baseline.mjs --check
+
+      - name: Run sqlc generate
+        working-directory: ./backend
+        run: sqlc generate
+
+      - name: Run buf generate
+        working-directory: ./backend
+        run: buf generate
+
+      - name: Check for uncommitted changes
+        run: git diff --exit-code -- backend/internal/db backend/internal/gen src/gen
+
+  e2e:
+    name: Local Supabase Authenticated E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache-dependency-path: backend/go.sum
+
+      - name: Install local Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.121.0
+
+      - name: Start clean local Supabase and apply migrations
+        run: |
+          supabase start > /tmp/vasoli-supabase-start.log 2>&1
+          supabase migration up --local
+          node scripts/pilot/local-env.mjs
+          node --env-file=.env.pilot.local scripts/pilot/migration-check.mjs
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run authenticated pilot journey against local services
+        run: |
+          node --env-file=.env.pilot.local scripts/pilot/dev.mjs > /tmp/vasoli-dev.log 2>&1 &
+          dev_pid=$!
+          trap 'kill "$dev_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:8080/healthz >/dev/null && curl --silent --fail http://localhost:3001/auth/signin >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --silent --fail http://127.0.0.1:8080/healthz >/dev/null
+          curl --silent --fail http://localhost:3001/auth/signin >/dev/null
+          node --env-file=.env.pilot.local scripts/pilot/api-check.mjs
+          node --env-file=.env.pilot.local scripts/pilot/restore-check.mjs
+          node --env-file=.env.pilot.local scripts/pilot/full-restore-check.mjs
+          set -a
+          source .env.pilot.local
+          set +a
+          VASOLI_TEST_DATABASE_URL="$PILOT_ADMIN_DATABASE_URL" \
+          VASOLI_TEST_SUPABASE_URL="$SUPABASE_URL" \
+          VASOLI_TEST_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+          VASOLI_TEST_MAILPIT_URL=http://127.0.0.1:55424 \
+          GOCACHE=/tmp/vasoli-go-cache \
+          go test -C backend ./api -run '^TestNotificationClaimsAreExclusiveAcrossWorkers|TestLocalMailpitDelivery$' -count=1
+          E2E_REQUIRE_AUTH=true E2E_EXTERNAL_SERVER=true E2E_APP_URL=http://localhost:3001 node --env-file=.env.pilot.local ./node_modules/@playwright/test/cli.js test

@@ -41,6 +41,12 @@ const (
 	// UserServiceGetWealthAnalyticsProcedure is the fully-qualified name of the UserService's
 	// GetWealthAnalytics RPC.
 	UserServiceGetWealthAnalyticsProcedure = "/vasoli.v1.UserService/GetWealthAnalytics"
+	// UserServiceGetNotificationPreferencesProcedure is the fully-qualified name of the UserService's
+	// GetNotificationPreferences RPC.
+	UserServiceGetNotificationPreferencesProcedure = "/vasoli.v1.UserService/GetNotificationPreferences"
+	// UserServiceUpdateNotificationPreferencesProcedure is the fully-qualified name of the
+	// UserService's UpdateNotificationPreferences RPC.
+	UserServiceUpdateNotificationPreferencesProcedure = "/vasoli.v1.UserService/UpdateNotificationPreferences"
 )
 
 // UserServiceClient is a client for the vasoli.v1.UserService service.
@@ -48,6 +54,8 @@ type UserServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	GetWealthAnalytics(context.Context, *connect.Request[v1.GetWealthAnalyticsRequest]) (*connect.Response[v1.GetWealthAnalyticsResponse], error)
+	GetNotificationPreferences(context.Context, *connect.Request[v1.GetNotificationPreferencesRequest]) (*connect.Response[v1.GetNotificationPreferencesResponse], error)
+	UpdateNotificationPreferences(context.Context, *connect.Request[v1.UpdateNotificationPreferencesRequest]) (*connect.Response[v1.UpdateNotificationPreferencesResponse], error)
 }
 
 // NewUserServiceClient constructs a client for the vasoli.v1.UserService service. By default, it
@@ -79,14 +87,28 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("GetWealthAnalytics")),
 			connect.WithClientOptions(opts...),
 		),
+		getNotificationPreferences: connect.NewClient[v1.GetNotificationPreferencesRequest, v1.GetNotificationPreferencesResponse](
+			httpClient,
+			baseURL+UserServiceGetNotificationPreferencesProcedure,
+			connect.WithSchema(userServiceMethods.ByName("GetNotificationPreferences")),
+			connect.WithClientOptions(opts...),
+		),
+		updateNotificationPreferences: connect.NewClient[v1.UpdateNotificationPreferencesRequest, v1.UpdateNotificationPreferencesResponse](
+			httpClient,
+			baseURL+UserServiceUpdateNotificationPreferencesProcedure,
+			connect.WithSchema(userServiceMethods.ByName("UpdateNotificationPreferences")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
-	getProfile         *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
-	updateProfile      *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
-	getWealthAnalytics *connect.Client[v1.GetWealthAnalyticsRequest, v1.GetWealthAnalyticsResponse]
+	getProfile                    *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
+	updateProfile                 *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
+	getWealthAnalytics            *connect.Client[v1.GetWealthAnalyticsRequest, v1.GetWealthAnalyticsResponse]
+	getNotificationPreferences    *connect.Client[v1.GetNotificationPreferencesRequest, v1.GetNotificationPreferencesResponse]
+	updateNotificationPreferences *connect.Client[v1.UpdateNotificationPreferencesRequest, v1.UpdateNotificationPreferencesResponse]
 }
 
 // GetProfile calls vasoli.v1.UserService.GetProfile.
@@ -104,11 +126,23 @@ func (c *userServiceClient) GetWealthAnalytics(ctx context.Context, req *connect
 	return c.getWealthAnalytics.CallUnary(ctx, req)
 }
 
+// GetNotificationPreferences calls vasoli.v1.UserService.GetNotificationPreferences.
+func (c *userServiceClient) GetNotificationPreferences(ctx context.Context, req *connect.Request[v1.GetNotificationPreferencesRequest]) (*connect.Response[v1.GetNotificationPreferencesResponse], error) {
+	return c.getNotificationPreferences.CallUnary(ctx, req)
+}
+
+// UpdateNotificationPreferences calls vasoli.v1.UserService.UpdateNotificationPreferences.
+func (c *userServiceClient) UpdateNotificationPreferences(ctx context.Context, req *connect.Request[v1.UpdateNotificationPreferencesRequest]) (*connect.Response[v1.UpdateNotificationPreferencesResponse], error) {
+	return c.updateNotificationPreferences.CallUnary(ctx, req)
+}
+
 // UserServiceHandler is an implementation of the vasoli.v1.UserService service.
 type UserServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	GetWealthAnalytics(context.Context, *connect.Request[v1.GetWealthAnalyticsRequest]) (*connect.Response[v1.GetWealthAnalyticsResponse], error)
+	GetNotificationPreferences(context.Context, *connect.Request[v1.GetNotificationPreferencesRequest]) (*connect.Response[v1.GetNotificationPreferencesResponse], error)
+	UpdateNotificationPreferences(context.Context, *connect.Request[v1.UpdateNotificationPreferencesRequest]) (*connect.Response[v1.UpdateNotificationPreferencesResponse], error)
 }
 
 // NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -136,6 +170,18 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("GetWealthAnalytics")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceGetNotificationPreferencesHandler := connect.NewUnaryHandler(
+		UserServiceGetNotificationPreferencesProcedure,
+		svc.GetNotificationPreferences,
+		connect.WithSchema(userServiceMethods.ByName("GetNotificationPreferences")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceUpdateNotificationPreferencesHandler := connect.NewUnaryHandler(
+		UserServiceUpdateNotificationPreferencesProcedure,
+		svc.UpdateNotificationPreferences,
+		connect.WithSchema(userServiceMethods.ByName("UpdateNotificationPreferences")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vasoli.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case UserServiceGetProfileProcedure:
@@ -144,6 +190,10 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceUpdateProfileHandler.ServeHTTP(w, r)
 		case UserServiceGetWealthAnalyticsProcedure:
 			userServiceGetWealthAnalyticsHandler.ServeHTTP(w, r)
+		case UserServiceGetNotificationPreferencesProcedure:
+			userServiceGetNotificationPreferencesHandler.ServeHTTP(w, r)
+		case UserServiceUpdateNotificationPreferencesProcedure:
+			userServiceUpdateNotificationPreferencesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -163,4 +213,12 @@ func (UnimplementedUserServiceHandler) UpdateProfile(context.Context, *connect.R
 
 func (UnimplementedUserServiceHandler) GetWealthAnalytics(context.Context, *connect.Request[v1.GetWealthAnalyticsRequest]) (*connect.Response[v1.GetWealthAnalyticsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.UserService.GetWealthAnalytics is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) GetNotificationPreferences(context.Context, *connect.Request[v1.GetNotificationPreferencesRequest]) (*connect.Response[v1.GetNotificationPreferencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.UserService.GetNotificationPreferences is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) UpdateNotificationPreferences(context.Context, *connect.Request[v1.UpdateNotificationPreferencesRequest]) (*connect.Response[v1.UpdateNotificationPreferencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.UserService.UpdateNotificationPreferences is not implemented"))
 }

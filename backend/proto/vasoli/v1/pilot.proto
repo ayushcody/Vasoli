@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service PilotService {
+  rpc GetPaydayPlan(GetPaydayPlanRequest) returns (GetPaydayPlanResponse);
+  rpc UpdatePaydayPlan(UpdatePaydayPlanRequest) returns (UpdatePaydayPlanResponse);
+  rpc SetActionState(SetActionStateRequest) returns (SetActionStateResponse);
+  rpc ConfirmAccountBalance(ConfirmAccountBalanceRequest) returns (ConfirmAccountBalanceResponse);
+  rpc RecordObligationPayment(RecordObligationPaymentRequest) returns (RecordObligationPaymentResponse);
+  rpc CreateTransfer(CreateTransferRequest) returns (CreateTransferResponse);
+  rpc ExportTransactions(ExportTransactionsRequest) returns (stream ExportTransactionsResponse);
+}
+
+message GetPaydayPlanRequest { int64 scenario_extra_outflow_paise = 1; }
+message PaydayPlanConfig {
+  int64 daily_allowance_paise = 1;
+  string next_payday = 2;
+  int64 minimum_reserve_paise = 3;
+  optional string selected_goal_id = 4;
+  int64 goal_reserved_paise = 5;
+  repeated string paying_account_ids = 6;
+}
+message AccountForecast {
+  string account_id = 1;
+  string account_name = 2;
+  int64 confirmed_balance_paise = 3;
+  google.protobuf.Timestamp balance_as_of = 4;
+  int64 projected_balance_paise = 5;
+  int64 lowest_projected_balance_paise = 6;
+  optional string first_shortfall_date = 7;
+}
+message DayProjection {
+  string date = 1;
+  int64 opening_balance_paise = 2;
+  int64 expected_income_paise = 3;
+  int64 expected_obligations_paise = 4;
+  int64 daily_allowance_paise = 5;
+  int64 closing_balance_paise = 6;
+  int64 safe_to_spend_paise = 7;
+  int64 expected_transfer_in_paise = 8;
+  int64 expected_transfer_out_paise = 9;
+}
+message PaydayWarning { string code = 1; string message = 2; }
+message GetPaydayPlanResponse {
+  PaydayPlanConfig config = 1;
+  repeated AccountForecast accounts = 2;
+  repeated DayProjection day_projections = 3;
+  repeated PaydayWarning warnings = 4;
+  bool actionable = 5;
+  repeated PaydayAction actions = 6;
+  int64 lowest_pooled_balance_paise = 7;
+  optional string first_pooled_shortfall_date = 8;
+}
+message PaydayAction { string action_id = 1; string title = 2; string description = 3; string state = 4; optional google.protobuf.Timestamp snoozed_until = 5; }
+message UpdatePaydayPlanRequest { PaydayPlanConfig config = 1; }
+message UpdatePaydayPlanResponse { GetPaydayPlanResponse plan = 1; }
+message SetActionStateRequest {
+  string action_id = 1;
+  string state = 2;
+  optional google.protobuf.Timestamp snooze_until = 3;
+}
+message SetActionStateResponse { string action_id = 1; string state = 2; optional google.protobuf.Timestamp snoozed_until = 3; }
+message ConfirmAccountBalanceRequest {
+  string account_id = 1;
+  int64 balance_paise = 2;
+  optional google.protobuf.Timestamp confirmed_at = 3;
+}
+message ConfirmAccountBalanceResponse { string account_id = 1; int64 balance_paise = 2; google.protobuf.Timestamp balance_as_of = 3; string balance_source = 4; }
+message RecordObligationPaymentRequest {
+  string recurring_rule_id = 1;
+  string occurrence_date = 2;
+  optional google.protobuf.Timestamp paid_at = 3;
+  optional string transaction_id = 4;
+}
+message RecordObligationPaymentResponse { string payment_id = 1; string recurring_rule_id = 2; string occurrence_date = 3; optional string transaction_id = 4; google.protobuf.Timestamp paid_at = 5; }
+message CreateTransferRequest {
+  string from_account_id = 1;
+  string to_account_id = 2;
+  int64 amount_paise = 3;
+  google.protobuf.Timestamp date = 4;
+  string description = 5;
+  string idempotency_key = 6;
+}
+message CreateTransferResponse { string transfer_group_id = 1; string debit_transaction_id = 2; string credit_transaction_id = 3; }
+message ExportTransactionsRequest {
+  optional google.protobuf.Timestamp start_date = 1;
+  optional google.protobuf.Timestamp end_date = 2;
+  optional string account_id = 3;
+  optional string type = 4;
+  string search = 5;
+  optional string category_id = 6;
+}
+message ExportTransactionsResponse { bytes csv_chunk = 1; }

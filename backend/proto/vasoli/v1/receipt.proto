@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service ReceiptService {
+  rpc CreateReceipt(CreateReceiptRequest) returns (CreateReceiptResponse);
+  rpc ListReceipts(ListReceiptsRequest) returns (ListReceiptsResponse);
+  rpc ListExpiring(ListExpiringRequest) returns (ListExpiringResponse);
+  rpc UpdateReceipt(UpdateReceiptRequest) returns (UpdateReceiptResponse);
+}
+
+message Receipt {
+  string id = 1;
+  string user_id = 2;
+  string merchant = 3;
+  int64 amount_paise = 4;
+  google.protobuf.Timestamp purchase_date = 5;
+  optional google.protobuf.Timestamp return_by = 6;
+  optional google.protobuf.Timestamp warranty_until = 7;
+  bool reimbursable = 8;
+  string ocr_payload_encrypted = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional google.protobuf.Timestamp snoozed_until = 11;
+}
+
+message CreateReceiptRequest {
+  string merchant = 1;
+  int64 amount_paise = 2;
+  google.protobuf.Timestamp purchase_date = 3;
+  optional google.protobuf.Timestamp return_by = 4;
+  optional google.protobuf.Timestamp warranty_until = 5;
+  bool reimbursable = 6;
+  string ocr_payload_encrypted = 7;
+}
+
+message CreateReceiptResponse {
+  Receipt receipt = 1;
+}
+
+message ListReceiptsRequest {}
+
+message ListReceiptsResponse {
+  repeated Receipt receipts = 1;
+}
+
+message ListExpiringRequest {
+  int32 days_ahead = 1; // Default to 30
+}
+
+message ListExpiringResponse {
+  repeated Receipt receipts = 1;
+}
+
+message UpdateReceiptRequest {
+  string id = 1;
+  optional bool reimbursable = 2;
+  optional google.protobuf.Timestamp return_by = 3;
+  optional google.protobuf.Timestamp warranty_until = 4;
+  optional google.protobuf.Timestamp snoozed_until = 5;
+}
+
+message UpdateReceiptResponse {
+  Receipt receipt = 1;
+}

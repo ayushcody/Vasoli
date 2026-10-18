@@ -9,6 +9,8 @@ service UserService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   rpc GetWealthAnalytics(GetWealthAnalyticsRequest) returns (GetWealthAnalyticsResponse);
+  rpc GetNotificationPreferences(GetNotificationPreferencesRequest) returns (GetNotificationPreferencesResponse);
+  rpc UpdateNotificationPreferences(UpdateNotificationPreferencesRequest) returns (UpdateNotificationPreferencesResponse);
 }
 
 message User {
@@ -46,4 +48,28 @@ message GetWealthAnalyticsResponse {
   double saved = 1;
   double spent = 2;
   double invested = 3;
+}
+
+message NotificationPreferences {
+  bool email_enabled = 1;
+  bool in_app_enabled = 2;
+  bool push_enabled = 3;
+  int32 lead_days = 4;
+}
+
+message GetNotificationPreferencesRequest {}
+
+message GetNotificationPreferencesResponse {
+  NotificationPreferences preferences = 1;
+}
+
+message UpdateNotificationPreferencesRequest {
+  optional bool email_enabled = 1;
+  optional bool in_app_enabled = 2;
+  optional bool push_enabled = 3;
+  optional int32 lead_days = 4;
+}
+
+message UpdateNotificationPreferencesResponse {
+  NotificationPreferences preferences = 1;
 }

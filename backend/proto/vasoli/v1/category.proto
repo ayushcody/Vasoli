@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service CategoryService {
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+  rpc SetTransactionCategory(SetTransactionCategoryRequest) returns (SetTransactionCategoryResponse);
+  rpc ListCategoryRules(ListCategoryRulesRequest) returns (ListCategoryRulesResponse);
+}
+
+message Category {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string color = 4;
+  string icon = 5;
+  bool is_default = 6;
+}
+
+message CategoryRule {
+  string id = 1;
+  string merchant_norm = 2;
+  string category_id = 3;
+  double confidence = 4;
+  google.protobuf.Timestamp last_used = 5;
+}
+
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message SetTransactionCategoryRequest {
+  string transaction_id = 1;
+  string category_id = 2;
+  string merchant_norm = 3; // Provided so we can upsert the learning rule
+}
+
+message SetTransactionCategoryResponse {
+  bool success = 1;
+}
+
+message ListCategoryRulesRequest {}
+
+message ListCategoryRulesResponse {
+  repeated CategoryRule rules = 1;
+}

@@ -1,110 +1,142 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import Image from "next/image"
-import { LogIn, ArrowLeft } from "lucide-react"
+import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, LogIn } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
+import { NeoBadge } from "@/components/ui/neo-badge";
+import { NeoButton } from "@/components/ui/neo-button";
+import { NeoInput } from "@/components/ui/neo-input";
+import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/components/ui/panel";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { createClient } from "@/lib/supabase/browser";
+
+const signInSchema = z.object({
+  email: z.string().email("Enter a valid email address."),
+  password: z.string().min(6, "Password should be at least 6 characters."),
+});
+
+type SignInValues = z.infer<typeof signInSchema>;
+
+function safeRedirectPath(value: string | null) {
+  const fallback = "/app/dashboard";
+  if (!value) return fallback;
+
+  try {
+    const base = "https://vasoli.invalid";
+    const target = new URL(value, base);
+    if (target.origin !== base || !/^\/app(?:\/|$)/.test(target.pathname)) {
+      return fallback;
+    }
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function SignInPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
+  const searchParams = useSearchParams();
+  const form = useForm<SignInValues>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+  async function signIn(values: SignInValues) {
+    const supabase = createClient();
+    const redirectedFrom = safeRedirectPath(searchParams.get("redirectedFrom"));
 
-    try {
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+    const { error } = await supabase.auth.signInWithPassword(values);
+
+    if (error) {
+      form.setError("root", {
+        message: error.message,
       });
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error || "Invalid email or password");
-      } else {
-        router.push("/dashboard")
-        router.refresh()
-      }
-    } catch (error) {
-      setError("An error occurred. Please try again.")
-    } finally {
-      setLoading(false)
+      return;
     }
+
+    window.location.href = redirectedFrom;
   }
 
-  const handleDemoLogin = async () => {
-    setLoading(true)
-    setError("")
-    
-    try {
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "demo@vasoli.com", password: "demo123" }),
-      });
-      
-      if (!response.ok) {
-        setError("Demo login failed. Please configure Supabase DB demo user.");
-      } else {
-        router.push("/dashboard")
-        router.refresh()
-      }
-    } catch {
-       setError("Demo login failed. Please try manually.")
-    }
-    
-    setLoading(false)
+  async function onSubmit(values: SignInValues) {
+    await signIn(values);
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-paper-1 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-taupe hover:text-ink transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
-        </Link>
-        <div className="border-brutal-thick rounded-neo-lg bg-paper-2 overflow-hidden shadow-brutal">
-          <div className="bg-mustard border-b-brutal px-8 py-6 text-center">
-            <Link href="/" className="inline-block mb-2">
-              <Image src="/vasoli_logo.png" alt="Vasoli" width={160} height={50} className="h-10 w-auto object-contain mx-auto" draggable={false} />
-            </Link>
-            <p className="text-sm text-ink/70">Sign in to manage your finances</p>
-          </div>
-          <div className="p-8 space-y-6">
-            {error && <div className="border-brutal rounded-neo bg-danger/10 text-danger px-4 py-3 text-sm font-medium">{error}</div>}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-xs uppercase tracking-wide font-medium text-taupe">Email</label>
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="w-full px-4 py-3 border-brutal rounded-neo bg-paper-1 text-sm focus:outline-none focus:shadow-brutal-sm transition-shadow" />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-xs uppercase tracking-wide font-medium text-taupe">Password</label>
-                <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="w-full px-4 py-3 border-brutal rounded-neo bg-paper-1 text-sm focus:outline-none focus:shadow-brutal-sm transition-shadow" />
-              </div>
-              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-neo border-brutal bg-cta text-ink font-bold text-sm hover:shadow-brutal transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? "Signing in..." : <>Sign In <LogIn className="h-4 w-4" /></>}
-              </button>
-            </form>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-ink/15" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-paper-2 px-3 text-taupe uppercase tracking-wide">or</span></div>
+    <div className="min-h-screen bg-paper-1 px-4 py-12">
+      <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
+        <Panel className="w-full rounded-neo-lg border-brutal-thick bg-paper-2 shadow-brutal">
+          <PanelHeader className="border-b-0 pb-2">
+            <div className="mb-4 grid size-16 place-items-center rounded-neo-md border-brutal-thick bg-mustard font-serif text-3xl font-black text-ink">
+              V
             </div>
-            <button onClick={handleDemoLogin} disabled={loading} className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-neo border-brutal bg-paper-1 text-ink font-medium text-sm hover:shadow-brutal-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50">
-              🚀 Try Demo Account
-            </button>
-            <p className="text-center text-xs text-taupe">
-              Don&apos;t have an account? <Link href="/auth/signup" className="text-cta font-medium hover:underline">Sign up free</Link>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-taupe">Sign in</p>
+            <PanelTitle>Access your account</PanelTitle>
+            <p className="text-sm leading-7 text-taupe">
+              Use your existing Vasoli account to get back to the dashboard, ledger, and monthly review loop.
             </p>
-          </div>
-        </div>
+          </PanelHeader>
+          <PanelContent>
+            <Form {...form}>
+              <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <NeoInput {...field} type="email" placeholder="you@example.com" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <NeoInput {...field} type="password" placeholder="••••••••" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {form.formState.errors.root ? (
+                  <NeoBadge variant="danger" className="w-full justify-center px-4 py-3 text-sm normal-case tracking-normal">
+                    {form.formState.errors.root.message}
+                  </NeoBadge>
+                ) : null}
+                <NeoButton type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <LogIn className="size-4" />}
+                  {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
+                </NeoButton>
+              </form>
+            </Form>
+            <p className="mt-6 text-sm text-taupe">
+              New here?{" "}
+              <Link href="/auth/signup" className="font-semibold text-ink underline underline-offset-4">
+                Create an account
+              </Link>
+            </p>
+          </PanelContent>
+        </Panel>
       </div>
     </div>
-  )
+  );
 }

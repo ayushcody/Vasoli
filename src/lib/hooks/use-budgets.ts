@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
+import { budgetClient } from '@/lib/rpc/clients';
 import { toast } from 'sonner';
+import { Timestamp } from "@bufbuild/protobuf";
 
 export interface Budget {
   id: string;
   name: string;
   amount: number;
-  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  period: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   startDate: string;
   endDate: string;
   categories: string[];
@@ -15,14 +16,14 @@ export interface Budget {
   remaining: number;
   percentage: number;
   isOverBudget: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateBudgetInput {
   name: string;
   amount: number;
-  period: 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  period: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   startDate: string;
   endDate: string;
   categories: string[];
@@ -30,11 +31,33 @@ export interface CreateBudgetInput {
 
 const BUDGETS_KEY = 'budgets';
 
+function mapBudget(b: any): Budget {
+  const amount = Number(b.amountPaise) / 100;
+  const spent = Number(b.spentPaise ?? 0n) / 100;
+  return {
+    id: b.id,
+    name: b.name,
+    amount: amount,
+    period: b.period as any,
+    startDate: b.startDate?.toDate().toISOString() || "",
+    endDate: b.endDate?.toDate().toISOString() || "",
+    categories: b.categories ? b.categories.split(",") : [],
+    userId: b.userId,
+    spent: spent,
+    remaining: amount - spent,
+    percentage: amount > 0 ? (spent / amount) * 100 : 0,
+    isOverBudget: spent > amount,
+    createdAt: b.createdAt?.toDate().toISOString(),
+    updatedAt: b.updatedAt?.toDate().toISOString(),
+  };
+}
+
 export function useBudgets() {
   return useQuery({
     queryKey: [BUDGETS_KEY],
     queryFn: async () => {
-      return apiClient.get<Budget[]>('/budgets');
+      const res = await budgetClient.listBudgets({});
+      return res.budgets.map(mapBudget);
     },
   });
 }
@@ -43,7 +66,10 @@ export function useBudget(id: string) {
   return useQuery({
     queryKey: [BUDGETS_KEY, id],
     queryFn: async () => {
-      return apiClient.get<Budget>(`/budgets/${id}`);
+      const res = await budgetClient.listBudgets({}); // No GetBudget RPC, filtering manually for now
+      const b = res.budgets.find(b => b.id === id);
+      if (!b) throw new Error("Budget not found");
+      return mapBudget(b);
     },
     enabled: !!id,
   });
@@ -51,10 +77,18 @@ export function useBudget(id: string) {
 
 export function useCreateBudget() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: CreateBudgetInput) => {
-      return apiClient.post<Budget>('/budgets', data);
+      const res = await budgetClient.createBudget({
+        name: data.name,
+        amountPaise: BigInt(Math.round(data.amount * 100)),
+        period: data.period,
+        startDate: Timestamp.fromDate(new Date(data.startDate)),
+        endDate: Timestamp.fromDate(new Date(data.endDate)),
+        categories: data.categories.join(","),
+      });
+      return mapBudget(res.budget);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [BUDGETS_KEY] });
@@ -70,10 +104,17 @@ export function useCreateBudget() {
 
 export function useUpdateBudget() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateBudgetInput> }) => {
-      return apiClient.patch<Budget>(`/budgets/${id}`, data);
+      const res = await budgetClient.updateBudget({
+        id,
+        name: data.name,
+        amountPaise: data.amount !== undefined ? BigInt(Math.round(data.amount * 100)) : undefined,
+        period: data.period,
+        categories: data.categories?.join(","),
+      });
+      return mapBudget(res.budget);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [BUDGETS_KEY] });
@@ -90,10 +131,10 @@ export function useUpdateBudget() {
 
 export function useDeleteBudget() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiClient.delete<void>(`/budgets/${id}`);
+      await budgetClient.deleteBudget({ id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [BUDGETS_KEY] });
@@ -111,11 +152,7 @@ export function useBudgetAlerts() {
   return useQuery({
     queryKey: [BUDGETS_KEY, 'alerts'],
     queryFn: async () => {
-      return apiClient.get<Array<{
-        budget: Budget;
-        alertType: 'APPROACHING' | 'OVER' | 'CRITICAL';
-        message: string;
-      }>>('/budgets/alerts');
+      return null;
     },
     staleTime: 1000 * 60 * 2,
   });

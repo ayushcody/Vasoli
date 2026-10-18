@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
+import { insightsClient } from '@/lib/rpc/clients';
 import { toast } from 'sonner';
 
 export interface HealthScoreComponent {
@@ -23,13 +23,13 @@ export interface HealthScoreInsight {
 }
 
 export interface FinancialHealthScore {
-  id: string;
+  id?: string;
   score: number;
   components: HealthScoreComponent[];
   factors: HealthScoreFactor[];
   insights: HealthScoreInsight[];
-  date: string;
-  userId: string;
+  date?: string;
+  userId?: string;
 }
 
 export interface HealthScoreHistory {
@@ -47,7 +47,29 @@ export function useHealthScore() {
   return useQuery({
     queryKey: [HEALTH_SCORE_KEY],
     queryFn: async () => {
-      return apiClient.get<FinancialHealthScore>('/health-score');
+      const res = await insightsClient.getHealthScore({});
+      return {
+        id: 'current',
+        score: res.score,
+        components: res.components.map(c => ({
+          name: c.name,
+          score: c.score,
+          weight: c.weight,
+          description: c.description,
+        })),
+        factors: res.factors.map(f => ({
+          type: f.type as any,
+          title: f.title,
+          description: f.description,
+          impact: f.impact,
+        })),
+        insights: res.insights.map(i => ({
+          category: i.category,
+          tip: i.tip,
+          priority: i.priority as any,
+        })),
+        date: new Date().toISOString(),
+      };
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -55,11 +77,11 @@ export function useHealthScore() {
 
 export function useHealthScoreHistory(options: { days?: number } = {}) {
   const { days = 30 } = options;
-  
+
   return useQuery({
     queryKey: [HEALTH_SCORE_KEY, 'history', { days }],
     queryFn: async () => {
-      return apiClient.get<HealthScoreHistory>(`/health-score/history?days=${days}`);
+      return null;
     },
     staleTime: 1000 * 60 * 10,
   });
@@ -67,10 +89,11 @@ export function useHealthScoreHistory(options: { days?: number } = {}) {
 
 export function useCalculateHealthScore() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async () => {
-      return apiClient.post<FinancialHealthScore>('/health-score/calculate', {});
+      const res = await insightsClient.getHealthScore({}); // Recalculate is usually same as get if computed on fly
+      return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [HEALTH_SCORE_KEY] });
@@ -89,12 +112,7 @@ export function useHealthScoreComparison() {
   return useQuery({
     queryKey: [HEALTH_SCORE_KEY, 'comparison'],
     queryFn: async () => {
-      return apiClient.get<{
-        yourScore: number;
-        averageScore: number;
-        percentile: number;
-        comparisonGroup: string;
-      }>('/health-score/comparison');
+      return null;
     },
     staleTime: 1000 * 60 * 60, // 1 hour
   });

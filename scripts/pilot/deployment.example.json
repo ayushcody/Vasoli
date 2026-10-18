@@ -1,0 +1,30 @@
+{
+  "mode": "hosted",
+  "jwtAlgorithms": ["RS256", "ES256"],
+  "env": {
+    "ENV": "production",
+    "NEXT_PUBLIC_SITE_URL": "https://<frontend-host>",
+    "RPC_BACKEND_URL": "https://<backend-host>",
+    "SUPABASE_URL": "https://<project-ref>.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://<project-ref>.supabase.co",
+    "NEXT_PUBLIC_PILOT_INVITE_ONLY": "true",
+    "SUPABASE_SIGNUP_ENABLED": false,
+    "BYPASS_AUTH": "false",
+    "NEXT_PUBLIC_BYPASS_AUTH": "false",
+    "CORS_ORIGINS": "https://<frontend-host>",
+    "SUPABASE_JWT_ISSUER": "https://<project-ref>.supabase.co/auth/v1",
+    "SUPABASE_JWT_AUDIENCE": "authenticated",
+    "SUPABASE_JWKS_URL": "https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json",
+    "SUPABASE_JWT_SECRET_CONFIGURED": false,
+    "DATABASE_URL": "postgresql://vasoli_app:<database-password>@<database-host>:5432/<database>?sslmode=require",
+    "DATABASE_ROLE_RESTRICTED": true,
+    "MARCO_ENABLED": "false",
+    "NEXT_PUBLIC_MARCO_ENABLED": "false",
+    "GEMINI_API_MODEL": "",
+    "GEMINI_API_KEY_CONFIGURED": false,
+    "ENABLE_EMAIL_NOTIFICATIONS": "false",
+    "SMTP_CONFIGURED": false,
+    "EXTERNAL_EMAIL_ENABLED": false,
+    "PAID_FEATURES_ENABLED": false
+  }
+}

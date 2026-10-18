@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package vasoli.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+service AchievementService {
+  rpc ListAchievements(ListAchievementsRequest) returns (ListAchievementsResponse) {}
+}
+
+message Achievement {
+  string id = 1;
+  string code = 2;
+  string title = 3;
+  string description = 4;
+  string icon = 5;
+  google.protobuf.Timestamp awarded_at = 6; // Nullable, if awarded
+}
+
+message ListAchievementsRequest {}
+
+message ListAchievementsResponse {
+  repeated Achievement achievements = 1;
+}

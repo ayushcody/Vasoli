@@ -1,238 +1,114 @@
-# Vasoli - Smart Personal Finance
+> Private pilot: start with [PRODUCT.md](PRODUCT.md) and [local setup and upgrade instructions](docs/private-pilot.md). The canonical migration sequence is `supabase/migrations`; historical SQL is not a second installation path.
 
-AI-powered personal finance management application.
+# Vasoli
 
-> [!NOTE]
-> Detailed documentation is now available in the [docs](./docs) directory.
+Vasoli is a lightweight, action-oriented financial education and wellness hub. It is designed for young professionals who want to understand their money without drowning in spreadsheets.
 
-## Features
+For the source-based assessment, priorities, and next build stages, see [project analysis and plan](docs/project-analysis-and-plan.md). Production readiness has not yet been established; [STATUS.md](STATUS.md) separates implementation from validation.
 
-### Phase 1 (MVP)
-- User authentication with email/password
-- Transaction tracking (income/expenses)
-- Budget management
-- Basic reporting and analytics
-- Receipt OCR scanning
-- AI-powered insights
+## Product Vision
 
-### Phase 2 Enhancements
+Vasoli isn't just about tracking where money went; it's about knowing what to do next. The core philosophy is **Capture, Review, and Reflect**:
+- **Capture:** Import CSV statements, scan receipts, and log transactions.
+- **Review:** See immediate safe-to-spend balances, upcoming obligations, and active goals.
+- **Reflect:** Read the monthly "Ledger Zine" and chat with Marco (your AI copilot) to understand your financial health and habits without judgment.
 
-#### Feature Expansion
-- **Recurring Transactions**: Automate regular income and expenses with flexible scheduling (daily, weekly, biweekly, monthly, quarterly, yearly)
-- **Split Transactions**: Divide transactions across multiple categories for accurate tracking
-- **Financial Goals**: Set savings targets with progress tracking and milestone notifications
-- **Financial Health Score**: Comprehensive wellness score based on savings rate, budget adherence, goal progress, spending consistency, and emergency fund coverage
-- **Reminders & Notifications**: Multi-channel reminder system for bills, goals, budgets, and recurring transactions
+## Current Features
 
-#### UI/UX Polish
-- **Motion & Animations**: Framer Motion-powered page transitions, staggered list animations, and micro-interactions
-- **Storytelling Dashboard**: Empty states with guided onboarding flows
-- **Animated Components**: Progress bars with smooth transitions, circular progress indicators, number counters
-- **Responsive Design**: Collapsible sidebar, mobile-optimized navigation, touch-friendly interactions
-- **Toast Notifications**: Rich toast system with Sonner
-
-#### State Management
-- **React Query**: Server state management with caching, background refetching, and optimistic updates
-- **Zustand Stores**: Client state for UI, chat sessions, form drafts, and filter preferences
-- **Centralized API Client**: Retry logic, automatic token refresh, request deduplication
-
-#### Backend Hardening
-- **Authentication Enhancements**: 
-  - Account lockout after failed attempts
-  - Refresh token system for session management
-  - Rate limiting on auth endpoints
-  - Comprehensive password strength requirements
-- **Audit Logging**: Immutable activity logs for all CRUD operations with before/after snapshots
-- **Job Queue System**: Background processing for recurring transactions, OCR, health score calculations, and notifications
-- **Caching Layer**: React Query client-side caching with strategic invalidation
+- **Dashboard:** A unified cockpit showing recorded net worth, monthly net cashflow, and a computed health score.
+- **Transactions & Statements:** CSV and generic imports for major Indian banks (HDFC, ICICI, SBI, Axis, Kotak, UPI passbooks).
+- **Goals:** Track custom savings goals with dedicated cadence and target milestones.
+- **Receipts Vault:** OCR-powered receipt capture with on-device payload encryption. Tracks return and warranty deadlines.
+- **Recurring Obligations & Reminders:** Manage subscriptions, bills, and one-off tasks in a dedicated view.
+- **Ledger Zine:** A stylized, magazine-like monthly digest of your spending habits and financial momentum.
+- **Learn Hub:** Integrated financial education covering emergency funds, debt payoff, and investing basics.
+- **Marco:** A Gemini-powered AI copilot that securely reads your localized financial data to answer questions and offer insights.
+- **Achievements:** A gamified milestone system that rewards positive financial behaviors.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: Custom components with class-variance-authority
-- **Database**: SQLite (Prisma ORM)
-- **Authentication**: NextAuth.js with credentials provider
-- **State Management**: React Query + Zustand
-- **Animations**: Framer Motion
-- **Form Validation**: Zod
-- **Date Utilities**: date-fns
+- **Frontend:** Next.js 14, React, TailwindCSS (Neo-brutalism design), Radix UI, Zustand, TanStack Query.
+- **Backend:** Go 1.25+, Connect RPC (gRPC-web), `sqlc` for type-safe Postgres queries, `buf` for Protobuf management.
+- **Database:** PostgreSQL (managed via Supabase).
+- **Authentication:** Supabase Auth (Session-based via middleware).
+- **AI/LLM:** Google Gemini API (via `@google/genai`).
 
-## Getting Started
+## Local Setup
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
+- Node.js 22.12+
+- npm
+- Go 1.25+
+- Supabase project / PostgreSQL database
 
-### Installation
+### Environment Variables
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd vasoli-mvp
-```
+Copy `.env.example` to `.env` in the root, and `backend/.env.example` to `backend/.env`.
 
-2. Install dependencies:
+**Root `.env` variables:**
+- `NEXT_PUBLIC_SUPABASE_URL` (Required): Next.js/Supabase URL endpoint.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Required): Next.js/Supabase anonymous API key.
+- `GMAIL_USER` / `GMAIL_APP_PASSWORD` (Optional): SMTP credentials used by Nodemailer.
+- `GEMINI_API_KEY` (Required for Marco): Google Gemini API key for the Marco AI assistant.
+- `RPC_BACKEND_URL` (Optional): Server-only backend origin for the `/rpc` proxy; defaults to `http://localhost:8080`.
+- `NEXT_PUBLIC_RPC_BASE_URL` (Optional): Browser RPC base; defaults to `/rpc`.
+
+**Backend `backend/.env` variables:**
+- `SUPABASE_JWT_SECRET` (Required): Secret key to verify incoming request authorization headers.
+- `DATABASE_URL` (Required): Direct access PostgreSQL URL.
+- `ENV=production` (Required for production): Enables production safeguards.
+- `SERVER_ADDR` (Optional): Backend listener, default `:8080`.
+- `BYPASS_AUTH=true` (Local demo only): Enables unauthenticated demo mode; rejected in production.
+
+### Install and Run
+
+1. Install Node.js dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+2. Run development servers (Next.js & Go backend concurrently):
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+# Using Makefile
+make dev
 
-4. Initialize the database:
-```bash
-npx prisma migrate dev
-npx prisma generate
-```
-
-5. Run the development server:
-```bash
+# Or using npm
 npm run dev
+# in a separate terminal:
+npm run backend:dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+The Next.js app runs on `http://localhost:3000` and the Go RPC server runs on `http://localhost:8080`.
 
-### Environment Variables
+## Developer Commands
 
-```env
-DATABASE_URL="file:./dev.db"
-NEXTAUTH_SECRET="your-secret-key-here"
-NEXTAUTH_URL="http://localhost:3000"
-```
+- **Code Generation:** Regenerate Protobuf clients and Go structs:
+  ```bash
+  npm run proto:gen
+  npm run sqlc:gen
+  ```
+- **Testing and Verification:** Run all linters, typechecks, frontend Vitest tests, and Go backend tests:
+  ```bash
+  npm run check
+  ```
 
-## Database Schema
+## Known Limitations
 
-The application uses the following main entities:
+- **Account Aggregation (India AA):** The architecture for external integrations is designed, but the live connection to the Account Aggregator ecosystem is not yet implemented.
+- **Push Notifications:** Currently, reminders and alerts use in-app polling or email (via Nodemailer). Native mobile push notifications are pending mobile app wrapper deployment.
+- **Forecast assumptions:** Cashflow estimates use recorded balances and recurring events. Unrecorded everyday spending and stale balances can materially change the outcome.
+- **Ledger coverage:** The transaction interface currently loads a bounded set. A complete server-side filtered ledger/export is planned.
+- **Release validation:** Authenticated end-to-end workflows, migration ordering, restore procedures, and live service configuration still need staging verification.
+- **Responsive Constraints:** The web app is responsive, but some complex data tables may require horizontal scrolling on very narrow screens.
 
-- **User**: Core user accounts with auth metadata
-- **Transaction**: Individual income/expense records
-- **TransactionSplit**: Multi-category allocations
-- **RecurringTransaction**: Scheduled transaction templates
-- **Goal**: Savings targets with contributions tracking
-- **GoalContribution**: Individual contributions to goals
-- **Budget**: Spending limits with category associations
-- **Reminder**: User notifications and alerts
-- **FinancialHealthScore**: Historical health score records
-- **Session**: Active user sessions
-- **AuditLog**: Activity tracking for compliance
-- **JobQueue**: Background job processing
-- **Category**: Transaction categorization
+## Continuous Integration (CI/CD)
 
-## API Routes
-
-### Authentication
-- `POST /api/auth/signin` - User login
-- `POST /api/auth/register` - User registration
-- `POST /api/user/refresh-token` - Refresh access token
-
-### Transactions
-- `GET /api/transactions` - List transactions
-- `POST /api/transactions` - Create transaction
-- `PATCH /api/transactions/:id` - Update transaction
-- `DELETE /api/transactions/:id` - Delete transaction
-
-### Recurring Transactions
-- `GET /api/recurring` - List recurring
-- `POST /api/recurring` - Create recurring
-- `PATCH /api/recurring/:id` - Update recurring
-- `DELETE /api/recurring/:id` - Delete recurring
-
-### Goals
-- `GET /api/goals` - List goals
-- `POST /api/goals` - Create goal
-- `GET /api/goals/:id` - Get goal details
-- `PATCH /api/goals/:id` - Update goal
-- `DELETE /api/goals/:id` - Delete goal
-- `POST /api/goals/:id/contributions` - Add contribution
-
-### Reminders
-- `GET /api/reminders` - List reminders
-- `POST /api/reminders` - Create reminder
-- `PATCH /api/reminders/:id` - Update reminder
-- `DELETE /api/reminders/:id` - Delete reminder
-- `PATCH /api/reminders/:id/complete` - Mark complete
-- `PATCH /api/reminders/:id/snooze` - Snooze reminder
-
-### Health Score
-- `GET /api/health-score` - Get current score
-- `POST /api/health-score` - Calculate new score
-- `GET /api/health-score/history` - Score history
-
-## Development
-
-### Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run db:generate` - Generate Prisma client
-- `npm run db:migrate` - Run database migrations
-- `npm run db:studio` - Open Prisma Studio
-
-### Project Structure
-
-```
-src/
-├── app/                 # Next.js app router pages
-│   ├── api/            # API routes
-│   ├── auth/           # Authentication pages
-│   ├── dashboard/      # Dashboard page
-│   ├── goals/          # Goals management
-│   ├── reminders/      # Reminders management
-│   └── ...
-├── components/         # React components
-│   ├── motion/         # Animation components
-│   ├── ui/             # UI primitives
-│   └── ...
-├── lib/                # Utility functions
-│   ├── api/            # API client
-│   ├── audit/          # Audit logging
-│   ├── hooks/          # React Query hooks
-│   ├── jobs/           # Job queue system
-│   └── stores/         # Zustand stores
-└── ...
-```
-
-## Deployment
-
-### Build for Production
-
-```bash
-npm run build
-```
-
-### Environment Variables for Production
-
-Ensure all environment variables are set for production:
-- `DATABASE_URL`
-- `NEXTAUTH_SECRET` (generate a strong random string)
-- `NEXTAUTH_URL` (your production URL)
-
-## Documentation
-
-The project documentation is organized in the [`docs/`](./docs) directory:
-
-- [**Architecture**](./docs/architecture.md): Overview of the system design and request flow.
-- [**Phase 2 Plan**](./docs/phase2-plan.md): Detailed implementation plan for the current phase.
-- [**Phase 2 Summary**](./docs/phase2-summary.md): Summary of implemented features in Phase 2.
-- [**Design System**](./docs/design-system.md): Documentation for the Neo-Brutal design system.
-- [**Project Summary**](./docs/project-summary.md): High-level overview and refactoring metrics.
-
-### Guides
-- [**Quick Start Guide**](./docs/guides/quick-start.md)
-- [**Supabase Migration**](./docs/guides/supabase-migration.md)
+Vasoli uses GitHub Actions. The CI workflow (`.github/workflows/ci.yml`) automatically runs on `push` and `pull_request` to the `main` branch, enforcing:
+- Frontend linting and strict typechecking.
+- Vitest and Go test suite passing.
+- Next.js production build success.
+- `sqlc` and `buf` generation cleanliness.
 
 ## License
 
-
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT

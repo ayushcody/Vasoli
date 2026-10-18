@@ -19,6 +19,8 @@ const config = {
     },
     extend: {
       fontFamily: {
+        base: ['var(--font-inter)', 'sans-serif'],
+        heading: ['var(--font-fraunces)', 'serif'],
         sans: ['var(--font-inter)', 'sans-serif'],
         serif: ['var(--font-fraunces)', 'serif'],
       },
@@ -35,6 +37,12 @@ const config = {
         cobalt: 'var(--cobalt)',
         pink: 'var(--pink)',
         grape: 'var(--grape)',
+        main: {
+          DEFAULT: 'var(--main)',
+          foreground: 'var(--main-foreground)',
+        },
+        sidebar: 'var(--sidebar)',
+        overlay: 'var(--overlay)',
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
@@ -47,6 +55,7 @@ const config = {
         secondary: {
           DEFAULT: "var(--secondary)",
           foreground: "var(--secondary-foreground)",
+          background: "var(--secondary-background)",
         },
         destructive: {
           DEFAULT: "var(--destructive)",
@@ -77,14 +86,22 @@ const config = {
         'brutal-thick': 'var(--border-width-thick)',
       },
       borderRadius: {
+        base: '8px',
         'neo': '8px',
         'neo-md': '12px',
         'neo-lg': '16px',
       },
       boxShadow: {
+        shadow: 'var(--shadow-brutal)',
         'brutal': 'var(--shadow-brutal)',
         'brutal-sm': 'var(--shadow-brutal-sm)',
         'brutal-hover': '6px 6px 0 var(--ink)',
+      },
+      translate: {
+        boxShadowX: 'var(--box-shadow-x)',
+        boxShadowY: 'var(--box-shadow-y)',
+        reverseBoxShadowX: 'calc(var(--box-shadow-x) * -1)',
+        reverseBoxShadowY: 'calc(var(--box-shadow-y) * -1)',
       },
       keyframes: {
         "accordion-down": {
@@ -95,10 +112,20 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-100%)' },
+        },
+        marquee2: {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        marquee: 'marquee 18s linear infinite',
+        marquee2: 'marquee2 18s linear infinite',
       },
     },
   },

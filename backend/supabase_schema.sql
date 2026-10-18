@@ -127,19 +127,69 @@ CREATE TABLE IF NOT EXISTS public.goal_contributions (
 
 CREATE TABLE IF NOT EXISTS public.reminders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
-  type TEXT NOT NULL,
-  dueDate TIMESTAMP WITH TIME ZONE NOT NULL,
-  status TEXT DEFAULT 'PENDING',
-  snoozeUntil TIMESTAMP WITH TIME ZONE,
-  metadata TEXT,
-
-  userId UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-
-  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updatedAt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  reminder_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  due_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  snoozed_until TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  dismissed_at TIMESTAMP WITH TIME ZONE,
+  linked_entity_type TEXT,
+  linked_entity_id UUID,
+  channel_email BOOLEAN DEFAULT false,
+  channel_push BOOLEAN DEFAULT false,
+  channel_in_app BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT valid_status CHECK (status IN ('PENDING', 'SNOOZED', 'COMPLETED', 'DISMISSED')),
+  CONSTRAINT valid_reminder_type CHECK (reminder_type IN ('BILL_DUE', 'GOAL_CONTRIBUTION', 'RECEIPT_RETURN', 'WARRANTY_EXPIRY', 'REIMBURSEMENT', 'CUSTOM'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_reminders_user_due_at ON public.reminders(user_id, due_at);
+CREATE INDEX IF NOT EXISTS idx_reminders_user_status ON public.reminders(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_reminders_user_type ON public.reminders(user_id, reminder_type);
+CREATE INDEX IF NOT EXISTS idx_reminders_linked_entity ON public.reminders(linked_entity_type, linked_entity_id);
+
+CREATE TABLE IF NOT EXISTS public.financial_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  account_type TEXT NOT NULL,
+  institution_name TEXT NOT NULL,
+  account_name TEXT NOT NULL,
+  masked_account_number TEXT,
+  balance_paise BIGINT NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'INR',
+  is_manual BOOLEAN NOT NULL DEFAULT true,
+  provider_name TEXT,
+  provider_account_id TEXT,
+  last_synced_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT valid_account_type CHECK (account_type IN ('CASH', 'SAVINGS', 'CURRENT', 'CREDIT_CARD', 'LOAN', 'BROKERAGE', 'MUTUAL_FUND', 'EPF', 'PPF', 'NPS', 'WALLET', 'OTHER'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_accounts_user ON public.financial_accounts(user_id);
+
+CREATE TABLE IF NOT EXISTS public.liabilities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  account_id UUID REFERENCES public.financial_accounts(id) ON DELETE SET NULL,
+  liability_type TEXT NOT NULL,
+  principal_paise BIGINT NOT NULL DEFAULT 0,
+  outstanding_paise BIGINT NOT NULL DEFAULT 0,
+  interest_rate_bps INTEGER,
+  emi_paise BIGINT,
+  due_day INTEGER,
+  start_date TIMESTAMP WITH TIME ZONE,
+  end_date TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT valid_liability_type CHECK (liability_type IN ('CREDIT_CARD', 'PERSONAL_LOAN', 'EDUCATION_LOAN', 'HOME_LOAN', 'VEHICLE_LOAN', 'BNPL', 'OTHER'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_liabilities_user ON public.liabilities(user_id);
 
 CREATE TABLE IF NOT EXISTS public.financial_health_scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -166,3 +216,23 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Achievements
+CREATE TABLE achievements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE user_achievements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    achievement_id UUID NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
+    awarded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE(user_id, achievement_id)
+);
+
+CREATE INDEX idx_user_achievements_user_id ON user_achievements(user_id);

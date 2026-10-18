@@ -1,344 +1,125 @@
-# Vasoli Architecture Diagram
+# Vasoli Architecture
 
-## Current (Complex) Architecture
+Vasoli is designed with a clear, performance-oriented architectural boundary between the frontend presentation/AI orchestration layer (Next.js) and the finance business logic engine (Go Connect-RPC).
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Browser                              │
-├─────────────────────────────────────────────────────────────┤
-│  Pages (Mixed Client/Server)                                │
-│  ├─ dashboard/page.tsx (Client Component)                   │
-│  ├─ transactions/page.tsx (Server Component)                │
-│  └─ goals/page.tsx (Client Component)                       │
-│                                                              │
-│  Components (Scattered)                                      │
-│  ├─ components/sidebar.tsx                                  │
-│  ├─ components/ui/*.tsx                                     │
-│  └─ components/motion/*.tsx                                 │
-│                                                              │
-│  Hooks (Complex)                                            │
-│  ├─ lib/hooks/use-transactions.ts (150 lines)              │
-│  ├─ lib/hooks/use-goals.ts                                 │
-│  └─ lib/hooks/use-budgets.ts                               │
-│                                                              │
-│  API Client (Over-engineered)                               │
-│  └─ lib/api/client.ts (200+ lines)                         │
-│      ├─ Retry logic                                         │
-│      ├─ Token refresh                                       │
-│      ├─ Request deduplication                               │
-│      └─ Timeout handling                                    │
-└─────────────────────────────────────────────────────────────┘
-                            ↓ HTTP
-┌─────────────────────────────────────────────────────────────┐
-│                      Next.js Server                          │
-├─────────────────────────────────────────────────────────────┤
-│  API Routes (Business Logic Mixed In)                       │
-│  ├─ api/transactions/route.ts (150 lines)                  │
-│  │   ├─ Auth check                                          │
-│  │   ├─ Validation                                          │
-│  │   ├─ Database queries                                    │
-│  │   ├─ Business logic                                      │
-│  │   └─ Response formatting                                 │
-│  ├─ api/goals/route.ts                                     │
-│  └─ api/budgets/route.ts                                   │
-│                                                              │
-│  Utilities (Scattered)                                       │
-│  ├─ lib/prisma.ts                                           │
-│  ├─ lib/audit/audit-logger.ts                              │
-│  ├─ lib/jobs/job-queue.ts                                  │
-│  └─ lib/stores/ui-store.ts (???)                           │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                       Database                               │
-│                      SQLite + Prisma                         │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Problems:**
-- ❌ Mixed client/server code
-- ❌ Business logic in API routes
-- ❌ Over-engineered API client
-- ❌ Scattered files
-- ❌ Hard to test
-- ❌ Hard to maintain
-
----
-
-## New (Simple) Architecture
+## Architectural Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    CLIENT (Browser)                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Pages (Thin Routing Layer)                                 │
-│  └─ app/(dashboard)/*/page.tsx                              │
+│  └─ src/app/(app)/*/page.tsx                                │
 │                                                              │
 │  Components                                                  │
-│  ├─ client/components/ui/                                   │
-│  ├─ client/components/layout/                               │
-│  └─ client/components/features/                             │
+│  ├─ src/components/ui/ (Radix/Neobrutalist primitives)       │
+│  └─ src/components/app/ (Feature components)                │
 │                                                              │
-│  Hooks (Simple)                                             │
-│  ├─ client/hooks/use-transactions.ts (50 lines)            │
-│  ├─ client/hooks/use-goals.ts                              │
-│  └─ client/hooks/use-budgets.ts                            │
+│  Hooks (TanStack Query + Connect-RPC client wrappers)       │
+│  └─ src/lib/hooks/use-*.ts                                  │
 │                                                              │
-│  Stores (UI Only)                                           │
-│  └─ client/stores/ui-store.ts                              │
-│                                                              │
-│  API Client (Simple)                                        │
-│  └─ client/lib/api.ts (50 lines)                           │
-│      └─ Basic fetch wrapper                                 │
+│  State (UI State Only)                                       │
+│  └─ src/lib/stores/ (Zustand client-side state)             │
 └─────────────────────────────────────────────────────────────┘
-                            ↓ HTTP
+                            │
+                            │ HTTP (Connect / gRPC-Web)
+                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    SERVER (Node.js)                          │
+│                    SERVER (Next.js Node)                     │
 ├─────────────────────────────────────────────────────────────┤
-│  API Routes (Thin Layer)                                    │
-│  ├─ app/api/transactions/route.ts (20 lines)               │
-│  │   ├─ Auth check                                          │
-│  │   ├─ Validation                                          │
-│  │   └─ Call service                                        │
-│  ├─ app/api/goals/route.ts                                 │
-│  └─ app/api/budgets/route.ts                               │
-│                            ↓
-│  Services (Business Logic) ⭐ NEW!                          │
-│  ├─ server/services/transaction.service.ts                 │
-│  │   ├─ getAll()                                            │
-│  │   ├─ getById()                                           │
-│  │   ├─ create()                                            │
-│  │   ├─ update()                                            │
-│  │   ├─ delete()                                            │
-│  │   └─ getSummary()                                        │
-│  ├─ server/services/goal.service.ts                        │
-│  ├─ server/services/budget.service.ts                      │
-│  └─ server/services/health-score.service.ts                │
-│                            ↓
-│  Database Layer                                             │
-│  └─ server/db/prisma.ts                                    │
+│  AI Orchestration & Persistence Layer                       │
+│  ├─ src/app/api/marco/chat/route.ts (Gemini + tool calling)  │
+│  └─ src/app/api/marco/threads/ (Supabase metadata store)     │
 │                                                              │
-│  Utilities                                                   │
-│  ├─ server/lib/validation.ts (Zod schemas)                 │
-│  ├─ server/lib/utils.ts                                    │
-│  └─ server/jobs/job-queue.ts                               │
+│  Authentication Shell / Proxy Router                         │
+│  ├─ src/middleware.ts (Supabase JWT extraction/protection)   │
+│  └─ src/app/auth/ (Auth pages and callbacks)                │
 └─────────────────────────────────────────────────────────────┘
-                            ↓
+                            │
+                            │ Internal Connect-RPC
+                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                       Database                               │
-│                      SQLite + Prisma                         │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                    SHARED (Both)                             │
+│                    BACKEND (Go Connect-RPC)                  │
 ├─────────────────────────────────────────────────────────────┤
-│  ├─ shared/types.ts (TypeScript interfaces)                │
-│  └─ shared/constants.ts (App constants)                    │
+│  Finance Domain Services (Go 1.25)                           │
+│  ├─ backend/api/ (Connect-RPC service handlers)             │
+│  ├─ backend/internal/gen/ (Protobuf generated Go code)      │
+│  └─ backend/internal/db/ (sqlc-generated query layer)        │
+│                                                              │
+│  Core Domain Logic                                          │
+│  ├─ Statement Import Parser (HDFC, Generic CSV)             │
+│  └─ Merchant Normalizer & Health Score Engine               │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ pgx (Postgres Driver)
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       DATABASE                               │
+│                PostgreSQL (Supabase Host)                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Benefits:**
-- ✅ Clear separation of concerns
-- ✅ Business logic in services
-- ✅ Simple API client
-- ✅ Organized files
-- ✅ Easy to test
-- ✅ Easy to maintain
+---
+
+## Domain Boundary Matrix
+
+| Layer | Technology | Primary Responsibility | Architectural Rule |
+| :--- | :--- | :--- | :--- |
+| **Presentation / UI** | React, Next.js, Zustand | UI layout, design tokens, charts, local encryption key handling. | **No** direct Postgres database access. No Prisma. |
+| **AI Orchestration** | Gemini, `@google/genai` | Thread metadata storage, prompts, intent parsing, tool selection. | Thread history stored directly via Supabase. Calls Go RPC services for tool execution. |
+| **Finance Engine** | Go, Connect-RPC | Business rules, balance calculations, projections, OCR processing, CSV parsing. | Owns the primary database schema. Exposes typed protobuf contracts. |
+| **Database** | PostgreSQL | Persistent application state. | Schema managed via migrations. Queries compiled with `sqlc`. |
 
 ---
 
-## Request Flow Example
+## Typical Request Flow
 
-### Before (Complex)
-```
-User clicks "Add Transaction"
-    ↓
-Component calls useCreateTransaction()
-    ↓
-Hook calls apiClient.post()
-    ↓
-API Client (200 lines):
-  - Adds request ID
-  - Sets up retry logic
-  - Handles token refresh
-  - Manages timeout
-  - Deduplicates requests
-    ↓
-API Route (150 lines):
-  - Checks auth
-  - Parses request
-  - Validates data
-  - Checks splits
-  - Creates transaction
-  - Creates splits
-  - Fetches result
-  - Formats response
-    ↓
-Database
-```
+```mermaid
+sequenceDiagram
+    participant UI as Browser UI
+    participant Hook as React Hook (TanStack Query)
+    participant Client as Connect-RPC Client
+    participant NextAPI as Next.js API (AI only)
+    participant GoSrv as Go RPC Handler
+    participant sqlc as Go sqlc Query
+    participant DB as Supabase PostgreSQL
 
-### After (Simple)
-```
-User clicks "Add Transaction"
-    ↓
-Component calls useCreateTransaction()
-    ↓
-Hook calls api.post() (simple fetch)
-    ↓
-API Route (20 lines):
-  - requireAuth()
-  - validate(data)
-  - transactionService.create()
-    ↓
-Service (100 lines):
-  - All business logic
-  - Database operations
-    ↓
-Database
+    %% Standard Finance Flow
+    rect rgb(240, 240, 240)
+        Note over UI, DB: Standard Finance Data Flow
+        UI->>Hook: Trigger Action / View Page
+        Hook->>Client: Call query/mutation method
+        Client->>GoSrv: POST /rpc/Service/Method (JSON/Protobuf)
+        GoSrv->>GoSrv: Verify Auth JWT in interceptor
+        GoSrv->>sqlc: Call query method
+        sqlc->>DB: Execute SQL
+        DB-->>sqlc: Return Rows
+        sqlc-->>GoSrv: Return Structs
+        GoSrv-->>Client: Return Protobuf response
+        Client-->>Hook: Resolve Promise
+        Hook-->>UI: Update View State
+    end
+
+    %% AI Assistant Tool Execution Flow
+    rect rgb(230, 245, 255)
+        Note over UI, DB: AI Assistant Tool Call Flow
+        UI->>NextAPI: Send message (POST /api/marco/chat)
+        NextAPI->>NextAPI: Call Gemini with system prompt
+        NextAPI-->>NextAPI: Gemini requests tool (e.g. get_goals)
+        NextAPI->>GoSrv: Connect-RPC request (ListGoals)
+        GoSrv->>DB: Fetch Goals
+        DB-->>GoSrv: Goals Data
+        GoSrv-->>NextAPI: Return Goals Protobuf Response
+        NextAPI->>NextAPI: Feed response back to Gemini
+        NextAPI-->>UI: Stream final answer chunk-by-chunk
+    end
 ```
 
 ---
 
-## File Organization
+## Architectural Guidelines
 
-### Before
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── transactions/route.ts (150 lines)
-│   │   ├── goals/route.ts (120 lines)
-│   │   └── budgets/route.ts (130 lines)
-│   ├── dashboard/page.tsx (Client)
-│   └── transactions/page.tsx (Server)
-├── components/
-│   ├── sidebar.tsx
-│   ├── ui/
-│   └── motion/
-└── lib/
-    ├── api/client.ts (200 lines)
-    ├── hooks/
-    ├── stores/
-    ├── audit/
-    ├── jobs/
-    └── prisma.ts
-
-Total: ~80 files, scattered
-```
-
-### After
-```
-src/
-├── client/                    # Frontend
-│   ├── components/
-│   ├── hooks/
-│   ├── stores/
-│   └── lib/
-├── server/                    # Backend
-│   ├── services/             # ⭐ NEW!
-│   ├── db/
-│   ├── jobs/
-│   └── lib/
-├── shared/                    # Both
-│   ├── types.ts
-│   └── constants.ts
-└── app/                       # Routing
-    ├── (dashboard)/
-    └── api/
-
-Total: ~50 files, organized
-```
-
----
-
-## Code Comparison
-
-### API Route
-
-**Before (150 lines):**
-```typescript
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const { searchParams } = new URL(request.url)
-    const type = searchParams.get("type")
-    const categoryId = searchParams.get("categoryId")
-    const startDate = searchParams.get("startDate")
-    const endDate = searchParams.get("endDate")
-    const where: any = { userId: (session.user as any).id }
-    if (type) where.type = type
-    if (categoryId) where.categoryId = categoryId
-    if (startDate || endDate) {
-      where.date = {}
-      if (startDate) where.date.gte = new Date(startDate)
-      if (endDate) where.date.lte = new Date(endDate)
-    }
-    const transactions = await prisma.transaction.findMany({
-      where,
-      include: {
-        category: true,
-        splits: { include: { category: true } },
-      },
-      orderBy: { date: "desc" },
-    })
-    return NextResponse.json(transactions)
-  } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
-```
-
-**After (20 lines):**
-```typescript
-export async function GET(request: NextRequest) {
-  try {
-    const userId = await requireAuth();
-    const filters = parseSearchParams(request.url);
-    const transactions = await transactionService.getAll(userId, filters);
-    return successResponse(transactions);
-  } catch (error) {
-    return handleError(error);
-  }
-}
-```
-
-### Service (NEW!)
-
-```typescript
-class TransactionService {
-  async getAll(userId: string, filters?: {...}): Promise<Transaction[]> {
-    const where: any = { userId };
-    if (filters?.type) where.type = filters.type;
-    if (filters?.categoryId) where.categoryId = filters.categoryId;
-    if (filters?.startDate || filters?.endDate) {
-      where.date = {};
-      if (filters.startDate) where.date.gte = new Date(filters.startDate);
-      if (filters.endDate) where.date.lte = new Date(filters.endDate);
-    }
-    return await prisma.transaction.findMany({
-      where,
-      include: {
-        category: true,
-        splits: { include: { category: true } },
-      },
-      orderBy: { date: 'desc' },
-    });
-  }
-}
-```
-
----
-
-## Summary
-
-The new architecture is:
-- **Simpler**: 30% less code
-- **Clearer**: Know exactly where code belongs
-- **Testable**: Services are independent
-- **Maintainable**: Easy to modify
-- **Scalable**: Easy to add features
-
-**Key Principle**: Separate Client, Server, and Shared code clearly!
+1. **Protobuf is the Single Source of Truth**: All API interfaces must be declared in `backend/proto/` files. Any RESTful Next.js API routes are exclusively for public pages, Auth callbacks, or AI orchestration.
+2. **Next.js API Route Scope**: Only routes that deal directly with Next.js/React rendering, external integration webhook callbacks, or AI streaming are permitted in `src/app/api`.
+3. **No Direct Node.js Database Queries**: Next.js server components and Route Handlers must not query PostgreSQL directly unless managing session/chat-thread metadata. All finance entities (transactions, goals, budgets) must be managed through the Go RPC layer.
+4. **Use sqlc for Go DB access**: Do not write raw queries in the Go code without compiling them through `sqlc`. Database schema migrations should be placed in `backend/migrations`.

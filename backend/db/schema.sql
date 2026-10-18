@@ -1,0 +1,389 @@
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    color TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE merchant_aliases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    raw_pattern TEXT NOT NULL,
+    merchant_norm TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, raw_pattern)
+);
+
+CREATE TABLE category_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    merchant_norm TEXT NOT NULL,
+    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    confidence DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    last_used TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, merchant_norm)
+);
+
+CREATE TABLE import_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    file_hash TEXT NOT NULL,
+    bank_format TEXT NOT NULL,
+    parsed_count INTEGER NOT NULL DEFAULT 0,
+    created_count INTEGER NOT NULL DEFAULT 0,
+    matched_count INTEGER NOT NULL DEFAULT 0,
+    failed_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_import_batches_user_file_hash ON import_batches(user_id,file_hash);
+
+CREATE TABLE receipts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    merchant TEXT NOT NULL,
+    amount_paise BIGINT NOT NULL,
+    purchase_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    return_by TIMESTAMP WITH TIME ZONE,
+    warranty_until TIMESTAMP WITH TIME ZONE,
+    reimbursable BOOLEAN NOT NULL DEFAULT false,
+    ocr_payload_encrypted TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    snoozed_until TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE recurring_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    merchant_norm TEXT NOT NULL,
+    amount_paise BIGINT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'EXPENSE',
+    cadence TEXT NOT NULL,
+    next_due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+    account_id UUID REFERENCES financial_accounts(id) ON DELETE SET NULL,
+    snoozed_until TIMESTAMP WITH TIME ZONE,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    amount_paise BIGINT NOT NULL,
+    description TEXT NOT NULL,
+    merchant_raw TEXT NOT NULL,
+    merchant_norm TEXT NOT NULL,
+    date TIMESTAMP WITH TIME ZONE NOT NULL,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'POSTED',
+    provenance TEXT NOT NULL DEFAULT 'MANUAL',
+    category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+    account_id UUID REFERENCES financial_accounts(id) ON DELETE SET NULL,
+    transfer_group_id UUID,
+    transfer_direction TEXT,
+    refund_of_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+    tags TEXT[] DEFAULT '{}',
+    payment_method TEXT,
+    upi_id TEXT,
+    upi_ref TEXT,
+    bank_rrn TEXT,
+    is_recurring BOOLEAN DEFAULT false,
+    recurring_id UUID REFERENCES recurring_rules(id) ON DELETE SET NULL,
+    receipt_url TEXT,
+    receipt_id UUID REFERENCES receipts(id) ON DELETE SET NULL,
+    import_batch_id UUID REFERENCES import_batches(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE goals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    target_amount_paise BIGINT NOT NULL,
+    current_amount_paise BIGINT NOT NULL DEFAULT 0,
+    due_date TIMESTAMP WITH TIME ZONE,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    color TEXT,
+    icon TEXT,
+    cadence TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE goal_contributions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    goal_id UUID REFERENCES goals(id) ON DELETE CASCADE,
+    amount_paise BIGINT NOT NULL,
+    note TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    amount_paise BIGINT NOT NULL,
+    period TEXT NOT NULL,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    categories TEXT NOT NULL DEFAULT '',
+    roll_unused_funds BOOLEAN NOT NULL DEFAULT false,
+    deduct_overspend BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE reminders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    reminder_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    due_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    snoozed_until TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    dismissed_at TIMESTAMP WITH TIME ZONE,
+    linked_entity_type TEXT,
+    linked_entity_id UUID,
+    channel_email BOOLEAN DEFAULT false,
+    channel_push BOOLEAN DEFAULT false,
+    channel_in_app BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_status CHECK (status IN ('PENDING', 'SNOOZED', 'COMPLETED', 'DISMISSED')),
+    CONSTRAINT valid_reminder_type CHECK (reminder_type IN ('BILL_DUE', 'GOAL_CONTRIBUTION', 'RECEIPT_RETURN', 'WARRANTY_EXPIRY', 'REIMBURSEMENT', 'CUSTOM'))
+);
+
+CREATE INDEX idx_reminders_user_due_at ON reminders(user_id, due_at);
+CREATE INDEX idx_reminders_user_status ON reminders(user_id, status);
+CREATE INDEX idx_reminders_user_type ON reminders(user_id, reminder_type);
+CREATE INDEX idx_reminders_linked_entity ON reminders(linked_entity_type, linked_entity_id);
+
+CREATE TABLE financial_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_type TEXT NOT NULL,
+    institution_name TEXT NOT NULL,
+    account_name TEXT NOT NULL,
+    masked_account_number TEXT,
+    balance_paise BIGINT NOT NULL DEFAULT 0,
+    balance_as_of TIMESTAMP WITH TIME ZONE,
+    balance_source TEXT NOT NULL DEFAULT 'UNCONFIRMED',
+    currency TEXT NOT NULL DEFAULT 'INR',
+    is_manual BOOLEAN NOT NULL DEFAULT true,
+    provider_name TEXT,
+    provider_account_id TEXT,
+    provider_connection_id UUID REFERENCES provider_connections(id) ON DELETE SET NULL,
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_account_type CHECK (account_type IN ('CASH', 'SAVINGS', 'CURRENT', 'CREDIT_CARD', 'LOAN', 'BROKERAGE', 'MUTUAL_FUND', 'EPF', 'PPF', 'NPS', 'WALLET', 'OTHER'))
+);
+
+CREATE INDEX idx_financial_accounts_user ON financial_accounts(user_id);
+
+CREATE TABLE liabilities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id UUID REFERENCES financial_accounts(id) ON DELETE SET NULL,
+    liability_type TEXT NOT NULL,
+    principal_paise BIGINT NOT NULL DEFAULT 0,
+    outstanding_paise BIGINT NOT NULL DEFAULT 0,
+    interest_rate_bps INTEGER,
+    emi_paise BIGINT,
+    due_day INTEGER,
+    start_date TIMESTAMP WITH TIME ZONE,
+    end_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_liability_type CHECK (liability_type IN ('CREDIT_CARD', 'PERSONAL_LOAN', 'EDUCATION_LOAN', 'HOME_LOAN', 'VEHICLE_LOAN', 'BNPL', 'OTHER'))
+);
+
+CREATE INDEX idx_liabilities_user ON liabilities(user_id);
+
+-- Achievements
+CREATE TABLE achievements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE user_achievements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    achievement_id UUID NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
+    awarded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE(user_id, achievement_id)
+);
+
+CREATE INDEX idx_user_achievements_user_id ON user_achievements(user_id);
+
+CREATE TABLE notification_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    email_enabled BOOLEAN NOT NULL DEFAULT false,
+    in_app_enabled BOOLEAN NOT NULL DEFAULT true,
+    push_enabled BOOLEAN NOT NULL DEFAULT false,
+    lead_days INTEGER NOT NULL DEFAULT 3,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE reminder_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reminder_id UUID NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    channel TEXT NOT NULL,
+    scheduled_for TIMESTAMP WITH TIME ZONE,
+    sent_at TIMESTAMP WITH TIME ZONE,
+    failed_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CLAIMED', 'SENT', 'FAILED', 'UNCERTAIN', 'DISABLED')),
+    claim_token UUID,
+    claim_until TIMESTAMP WITH TIME ZONE,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(reminder_id, channel)
+);
+
+CREATE INDEX idx_reminder_notifications_user ON reminder_notifications(user_id);
+
+CREATE INDEX idx_reminder_notifications_claim ON reminder_notifications(status, next_attempt_at, scheduled_for);
+
+CREATE TABLE account_deletion_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    idempotency_key UUID NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    lease_until TIMESTAMP WITH TIME ZONE,
+    last_error TEXT,
+    requested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE (user_id, idempotency_key),
+    CONSTRAINT valid_deletion_status CHECK (status IN ('PENDING', 'DELETING_DATA', 'DELETING_AUTH', 'FAILED', 'COMPLETED'))
+);
+CREATE INDEX idx_account_deletion_requests_work ON account_deletion_requests(status, lease_until, requested_at);
+
+CREATE TABLE provider_connections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider_type TEXT NOT NULL,
+    provider_name TEXT NOT NULL,
+    connection_status TEXT NOT NULL DEFAULT 'PENDING',
+    consent_id TEXT,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_provider_type CHECK (provider_type IN ('ACCOUNT_AGGREGATOR', 'BROKER', 'UPI', 'EMAIL')),
+    CONSTRAINT valid_connection_status CHECK (connection_status IN ('PENDING', 'ACTIVE', 'REVOKED', 'EXPIRED'))
+);
+
+CREATE INDEX idx_provider_connections_user ON provider_connections(user_id);
+
+CREATE TABLE payday_plans (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    daily_allowance_paise BIGINT NOT NULL DEFAULT 0 CHECK (daily_allowance_paise >= 0),
+    next_payday DATE NOT NULL,
+    minimum_reserve_paise BIGINT NOT NULL DEFAULT 0 CHECK (minimum_reserve_paise >= 0),
+    selected_goal_id UUID REFERENCES goals(id) ON DELETE SET NULL,
+    goal_reserved_paise BIGINT NOT NULL DEFAULT 0 CHECK (goal_reserved_paise >= 0),
+    paying_account_ids UUID[] NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE payday_action_states (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    snoozed_until TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY(user_id, action_id),
+    CONSTRAINT valid_payday_action_state CHECK (state IN ('COMPLETED', 'DISMISSED', 'SNOOZED'))
+);
+
+CREATE TABLE recurring_payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recurring_rule_id UUID NOT NULL REFERENCES recurring_rules(id) ON DELETE CASCADE,
+    occurrence_date DATE NOT NULL,
+    paid_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+    UNIQUE(user_id, recurring_rule_id, occurrence_date)
+);
+CREATE INDEX idx_recurring_payments_user_occurrence ON recurring_payments(user_id, occurrence_date);
+
+CREATE TABLE transfer_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    idempotency_key TEXT NOT NULL,
+    from_account_id UUID NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT,
+    to_account_id UUID NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT,
+    amount_paise BIGINT NOT NULL CHECK (amount_paise > 0),
+    debit_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+    credit_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, idempotency_key),
+    CHECK(from_account_id <> to_account_id)
+);
+
+CREATE TABLE import_commit_idempotency (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id UUID NOT NULL REFERENCES financial_accounts(id) ON DELETE CASCADE,
+    idempotency_key TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    choices_hash TEXT NOT NULL,
+    preview_token UUID NOT NULL,
+    batch_id UUID REFERENCES import_batches(id) ON DELETE SET NULL,
+    created_count INTEGER NOT NULL DEFAULT 0,
+    duplicate_count INTEGER NOT NULL DEFAULT 0,
+    skipped_count INTEGER NOT NULL DEFAULT 0,
+    reconciliation_difference_paise BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY(user_id, account_id, idempotency_key),
+    UNIQUE(user_id, preview_token)
+);
+
+-- Next routes use Supabase's case-sensitive identifiers for Marco chat.
+CREATE TABLE marco_threads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "userId" UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL DEFAULT 'New conversation',
+    "lastMessageAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_marco_threads_user_id ON marco_threads("userId");
+CREATE TABLE marco_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "threadId" UUID NOT NULL REFERENCES marco_threads(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    "partsJson" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_marco_messages_thread_id ON marco_messages("threadId");

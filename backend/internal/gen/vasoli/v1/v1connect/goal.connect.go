@@ -35,6 +35,8 @@ const (
 const (
 	// GoalServiceCreateGoalProcedure is the fully-qualified name of the GoalService's CreateGoal RPC.
 	GoalServiceCreateGoalProcedure = "/vasoli.v1.GoalService/CreateGoal"
+	// GoalServiceGetGoalProcedure is the fully-qualified name of the GoalService's GetGoal RPC.
+	GoalServiceGetGoalProcedure = "/vasoli.v1.GoalService/GetGoal"
 	// GoalServiceListGoalsProcedure is the fully-qualified name of the GoalService's ListGoals RPC.
 	GoalServiceListGoalsProcedure = "/vasoli.v1.GoalService/ListGoals"
 	// GoalServiceUpdateGoalProcedure is the fully-qualified name of the GoalService's UpdateGoal RPC.
@@ -49,6 +51,7 @@ const (
 // GoalServiceClient is a client for the vasoli.v1.GoalService service.
 type GoalServiceClient interface {
 	CreateGoal(context.Context, *connect.Request[v1.CreateGoalRequest]) (*connect.Response[v1.CreateGoalResponse], error)
+	GetGoal(context.Context, *connect.Request[v1.GetGoalRequest]) (*connect.Response[v1.GetGoalResponse], error)
 	ListGoals(context.Context, *connect.Request[v1.ListGoalsRequest]) (*connect.Response[v1.ListGoalsResponse], error)
 	UpdateGoal(context.Context, *connect.Request[v1.UpdateGoalRequest]) (*connect.Response[v1.UpdateGoalResponse], error)
 	DeleteGoal(context.Context, *connect.Request[v1.DeleteGoalRequest]) (*connect.Response[v1.DeleteGoalResponse], error)
@@ -70,6 +73,12 @@ func NewGoalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+GoalServiceCreateGoalProcedure,
 			connect.WithSchema(goalServiceMethods.ByName("CreateGoal")),
+			connect.WithClientOptions(opts...),
+		),
+		getGoal: connect.NewClient[v1.GetGoalRequest, v1.GetGoalResponse](
+			httpClient,
+			baseURL+GoalServiceGetGoalProcedure,
+			connect.WithSchema(goalServiceMethods.ByName("GetGoal")),
 			connect.WithClientOptions(opts...),
 		),
 		listGoals: connect.NewClient[v1.ListGoalsRequest, v1.ListGoalsResponse](
@@ -102,6 +111,7 @@ func NewGoalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // goalServiceClient implements GoalServiceClient.
 type goalServiceClient struct {
 	createGoal      *connect.Client[v1.CreateGoalRequest, v1.CreateGoalResponse]
+	getGoal         *connect.Client[v1.GetGoalRequest, v1.GetGoalResponse]
 	listGoals       *connect.Client[v1.ListGoalsRequest, v1.ListGoalsResponse]
 	updateGoal      *connect.Client[v1.UpdateGoalRequest, v1.UpdateGoalResponse]
 	deleteGoal      *connect.Client[v1.DeleteGoalRequest, v1.DeleteGoalResponse]
@@ -111,6 +121,11 @@ type goalServiceClient struct {
 // CreateGoal calls vasoli.v1.GoalService.CreateGoal.
 func (c *goalServiceClient) CreateGoal(ctx context.Context, req *connect.Request[v1.CreateGoalRequest]) (*connect.Response[v1.CreateGoalResponse], error) {
 	return c.createGoal.CallUnary(ctx, req)
+}
+
+// GetGoal calls vasoli.v1.GoalService.GetGoal.
+func (c *goalServiceClient) GetGoal(ctx context.Context, req *connect.Request[v1.GetGoalRequest]) (*connect.Response[v1.GetGoalResponse], error) {
+	return c.getGoal.CallUnary(ctx, req)
 }
 
 // ListGoals calls vasoli.v1.GoalService.ListGoals.
@@ -136,6 +151,7 @@ func (c *goalServiceClient) AddContribution(ctx context.Context, req *connect.Re
 // GoalServiceHandler is an implementation of the vasoli.v1.GoalService service.
 type GoalServiceHandler interface {
 	CreateGoal(context.Context, *connect.Request[v1.CreateGoalRequest]) (*connect.Response[v1.CreateGoalResponse], error)
+	GetGoal(context.Context, *connect.Request[v1.GetGoalRequest]) (*connect.Response[v1.GetGoalResponse], error)
 	ListGoals(context.Context, *connect.Request[v1.ListGoalsRequest]) (*connect.Response[v1.ListGoalsResponse], error)
 	UpdateGoal(context.Context, *connect.Request[v1.UpdateGoalRequest]) (*connect.Response[v1.UpdateGoalResponse], error)
 	DeleteGoal(context.Context, *connect.Request[v1.DeleteGoalRequest]) (*connect.Response[v1.DeleteGoalResponse], error)
@@ -153,6 +169,12 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 		GoalServiceCreateGoalProcedure,
 		svc.CreateGoal,
 		connect.WithSchema(goalServiceMethods.ByName("CreateGoal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	goalServiceGetGoalHandler := connect.NewUnaryHandler(
+		GoalServiceGetGoalProcedure,
+		svc.GetGoal,
+		connect.WithSchema(goalServiceMethods.ByName("GetGoal")),
 		connect.WithHandlerOptions(opts...),
 	)
 	goalServiceListGoalsHandler := connect.NewUnaryHandler(
@@ -183,6 +205,8 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 		switch r.URL.Path {
 		case GoalServiceCreateGoalProcedure:
 			goalServiceCreateGoalHandler.ServeHTTP(w, r)
+		case GoalServiceGetGoalProcedure:
+			goalServiceGetGoalHandler.ServeHTTP(w, r)
 		case GoalServiceListGoalsProcedure:
 			goalServiceListGoalsHandler.ServeHTTP(w, r)
 		case GoalServiceUpdateGoalProcedure:
@@ -202,6 +226,10 @@ type UnimplementedGoalServiceHandler struct{}
 
 func (UnimplementedGoalServiceHandler) CreateGoal(context.Context, *connect.Request[v1.CreateGoalRequest]) (*connect.Response[v1.CreateGoalResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.GoalService.CreateGoal is not implemented"))
+}
+
+func (UnimplementedGoalServiceHandler) GetGoal(context.Context, *connect.Request[v1.GetGoalRequest]) (*connect.Response[v1.GetGoalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.GoalService.GetGoal is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) ListGoals(context.Context, *connect.Request[v1.ListGoalsRequest]) (*connect.Response[v1.ListGoalsResponse], error) {

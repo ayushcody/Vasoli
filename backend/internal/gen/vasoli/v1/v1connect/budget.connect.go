@@ -45,6 +45,9 @@ const (
 	// BudgetServiceDeleteBudgetProcedure is the fully-qualified name of the BudgetService's
 	// DeleteBudget RPC.
 	BudgetServiceDeleteBudgetProcedure = "/vasoli.v1.BudgetService/DeleteBudget"
+	// BudgetServiceGetSuggestedBudgetProcedure is the fully-qualified name of the BudgetService's
+	// GetSuggestedBudget RPC.
+	BudgetServiceGetSuggestedBudgetProcedure = "/vasoli.v1.BudgetService/GetSuggestedBudget"
 )
 
 // BudgetServiceClient is a client for the vasoli.v1.BudgetService service.
@@ -53,6 +56,7 @@ type BudgetServiceClient interface {
 	ListBudgets(context.Context, *connect.Request[v1.ListBudgetsRequest]) (*connect.Response[v1.ListBudgetsResponse], error)
 	UpdateBudget(context.Context, *connect.Request[v1.UpdateBudgetRequest]) (*connect.Response[v1.UpdateBudgetResponse], error)
 	DeleteBudget(context.Context, *connect.Request[v1.DeleteBudgetRequest]) (*connect.Response[v1.DeleteBudgetResponse], error)
+	GetSuggestedBudget(context.Context, *connect.Request[v1.GetSuggestedBudgetRequest]) (*connect.Response[v1.GetSuggestedBudgetResponse], error)
 }
 
 // NewBudgetServiceClient constructs a client for the vasoli.v1.BudgetService service. By default,
@@ -90,15 +94,22 @@ func NewBudgetServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(budgetServiceMethods.ByName("DeleteBudget")),
 			connect.WithClientOptions(opts...),
 		),
+		getSuggestedBudget: connect.NewClient[v1.GetSuggestedBudgetRequest, v1.GetSuggestedBudgetResponse](
+			httpClient,
+			baseURL+BudgetServiceGetSuggestedBudgetProcedure,
+			connect.WithSchema(budgetServiceMethods.ByName("GetSuggestedBudget")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // budgetServiceClient implements BudgetServiceClient.
 type budgetServiceClient struct {
-	createBudget *connect.Client[v1.CreateBudgetRequest, v1.CreateBudgetResponse]
-	listBudgets  *connect.Client[v1.ListBudgetsRequest, v1.ListBudgetsResponse]
-	updateBudget *connect.Client[v1.UpdateBudgetRequest, v1.UpdateBudgetResponse]
-	deleteBudget *connect.Client[v1.DeleteBudgetRequest, v1.DeleteBudgetResponse]
+	createBudget       *connect.Client[v1.CreateBudgetRequest, v1.CreateBudgetResponse]
+	listBudgets        *connect.Client[v1.ListBudgetsRequest, v1.ListBudgetsResponse]
+	updateBudget       *connect.Client[v1.UpdateBudgetRequest, v1.UpdateBudgetResponse]
+	deleteBudget       *connect.Client[v1.DeleteBudgetRequest, v1.DeleteBudgetResponse]
+	getSuggestedBudget *connect.Client[v1.GetSuggestedBudgetRequest, v1.GetSuggestedBudgetResponse]
 }
 
 // CreateBudget calls vasoli.v1.BudgetService.CreateBudget.
@@ -121,12 +132,18 @@ func (c *budgetServiceClient) DeleteBudget(ctx context.Context, req *connect.Req
 	return c.deleteBudget.CallUnary(ctx, req)
 }
 
+// GetSuggestedBudget calls vasoli.v1.BudgetService.GetSuggestedBudget.
+func (c *budgetServiceClient) GetSuggestedBudget(ctx context.Context, req *connect.Request[v1.GetSuggestedBudgetRequest]) (*connect.Response[v1.GetSuggestedBudgetResponse], error) {
+	return c.getSuggestedBudget.CallUnary(ctx, req)
+}
+
 // BudgetServiceHandler is an implementation of the vasoli.v1.BudgetService service.
 type BudgetServiceHandler interface {
 	CreateBudget(context.Context, *connect.Request[v1.CreateBudgetRequest]) (*connect.Response[v1.CreateBudgetResponse], error)
 	ListBudgets(context.Context, *connect.Request[v1.ListBudgetsRequest]) (*connect.Response[v1.ListBudgetsResponse], error)
 	UpdateBudget(context.Context, *connect.Request[v1.UpdateBudgetRequest]) (*connect.Response[v1.UpdateBudgetResponse], error)
 	DeleteBudget(context.Context, *connect.Request[v1.DeleteBudgetRequest]) (*connect.Response[v1.DeleteBudgetResponse], error)
+	GetSuggestedBudget(context.Context, *connect.Request[v1.GetSuggestedBudgetRequest]) (*connect.Response[v1.GetSuggestedBudgetResponse], error)
 }
 
 // NewBudgetServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -160,6 +177,12 @@ func NewBudgetServiceHandler(svc BudgetServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(budgetServiceMethods.ByName("DeleteBudget")),
 		connect.WithHandlerOptions(opts...),
 	)
+	budgetServiceGetSuggestedBudgetHandler := connect.NewUnaryHandler(
+		BudgetServiceGetSuggestedBudgetProcedure,
+		svc.GetSuggestedBudget,
+		connect.WithSchema(budgetServiceMethods.ByName("GetSuggestedBudget")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vasoli.v1.BudgetService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BudgetServiceCreateBudgetProcedure:
@@ -170,6 +193,8 @@ func NewBudgetServiceHandler(svc BudgetServiceHandler, opts ...connect.HandlerOp
 			budgetServiceUpdateBudgetHandler.ServeHTTP(w, r)
 		case BudgetServiceDeleteBudgetProcedure:
 			budgetServiceDeleteBudgetHandler.ServeHTTP(w, r)
+		case BudgetServiceGetSuggestedBudgetProcedure:
+			budgetServiceGetSuggestedBudgetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -193,4 +218,8 @@ func (UnimplementedBudgetServiceHandler) UpdateBudget(context.Context, *connect.
 
 func (UnimplementedBudgetServiceHandler) DeleteBudget(context.Context, *connect.Request[v1.DeleteBudgetRequest]) (*connect.Response[v1.DeleteBudgetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.BudgetService.DeleteBudget is not implemented"))
+}
+
+func (UnimplementedBudgetServiceHandler) GetSuggestedBudget(context.Context, *connect.Request[v1.GetSuggestedBudgetRequest]) (*connect.Response[v1.GetSuggestedBudgetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vasoli.v1.BudgetService.GetSuggestedBudget is not implemented"))
 }

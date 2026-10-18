@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package vasoli.v1;
+option go_package = "vasoli-backend/internal/gen/vasoli/v1";
+
+import "google/protobuf/timestamp.proto";
+
+service RecurringService {
+  rpc ListCandidates(ListCandidatesRequest) returns (ListCandidatesResponse);
+  rpc CreateRuleFromCandidate(CreateRuleFromCandidateRequest) returns (CreateRuleFromCandidateResponse);
+  rpc ListRules(ListRecurringRulesRequest) returns (ListRecurringRulesResponse);
+  rpc GetRule(GetRuleRequest) returns (GetRuleResponse);
+  rpc UpdateRule(UpdateRuleRequest) returns (UpdateRuleResponse);
+  rpc DeleteRule(DeleteRuleRequest) returns (DeleteRuleResponse);
+  rpc ListUpcoming(ListUpcomingRequest) returns (ListUpcomingResponse);
+  rpc SnoozeRule(SnoozeRuleRequest) returns (SnoozeRuleResponse);
+  rpc CancelRule(CancelRuleRequest) returns (CancelRuleResponse);
+}
+
+message ListRecurringRulesRequest {}
+
+message ListRecurringRulesResponse {
+  repeated RecurringRule rules = 1;
+}
+
+message GetRuleRequest {
+  string id = 1;
+}
+
+message GetRuleResponse {
+  RecurringRule rule = 1;
+}
+
+message UpdateRuleRequest {
+  string id = 1;
+  optional int64 amount_paise = 2;
+  optional string cadence = 3;
+  optional bool active = 4;
+  optional google.protobuf.Timestamp next_due_date = 5;
+  optional string merchant_norm = 6;
+  optional string type = 7;
+  optional string category_id = 8;
+  optional string account_id = 9;
+}
+
+message UpdateRuleResponse {
+  RecurringRule rule = 1;
+}
+
+message DeleteRuleRequest {
+  string id = 1;
+}
+
+message DeleteRuleResponse {}
+
+message RecurringCandidate {
+  string merchant_norm = 1;
+  int64 amount_paise_bucket = 2;
+  string inferred_cadence = 3;
+  double confidence_score = 4;
+  google.protobuf.Timestamp suggested_next_due = 5;
+  int32 occurrence_count = 6;
+}
+
+message ListCandidatesRequest {}
+
+message ListCandidatesResponse {
+  repeated RecurringCandidate candidates = 1;
+}
+
+message CreateRuleFromCandidateRequest {
+  string merchant_norm = 1;
+  int64 amount_paise = 2;
+  string cadence = 3;
+  google.protobuf.Timestamp next_due_date = 4;
+  optional string type = 5;
+  optional string category_id = 6;
+  optional string account_id = 7;
+}
+
+message RecurringRule {
+  string id = 1;
+  string user_id = 2;
+  string merchant_norm = 3;
+  int64 amount_paise = 4;
+  string cadence = 5;
+  google.protobuf.Timestamp next_due_date = 6;
+  bool active = 7;
+  optional google.protobuf.Timestamp snoozed_until = 8;
+  optional google.protobuf.Timestamp cancelled_at = 9;
+  string type = 10;
+  optional string category_id = 11;
+  optional string account_id = 12;
+}
+
+message CreateRuleFromCandidateResponse {
+  RecurringRule rule = 1;
+}
+
+message ListUpcomingRequest {
+  int32 days_ahead = 1;
+}
+
+message ListUpcomingResponse {
+  repeated RecurringRule rules = 1;
+}
+
+message SnoozeRuleRequest {
+  string rule_id = 1;
+  google.protobuf.Timestamp until_date = 2;
+}
+
+message SnoozeRuleResponse {
+  RecurringRule rule = 1;
+}
+
+message CancelRuleRequest {
+  string rule_id = 1;
+}
+
+message CancelRuleResponse {
+  RecurringRule rule = 1;
+}
