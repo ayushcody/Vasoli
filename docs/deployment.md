@@ -4,27 +4,29 @@ This plan takes the approved invite-only salaried-India pilot from the verified 
 
 ## Target shape
 
-- **Web:** Next.js production server over HTTPS. Keep `RPC_BACKEND_URL` server-only; the browser calls the same-origin `/rpc` route.
-- **API:** Go Connect RPC service on a persistent container or VM with HTTPS health checks. Keep it private behind the web service when the selected host supports private networking; otherwise restrict ingress to the web tier where practical.
+- **Vercel project:** one Vercel Services project with `app` (Next.js, rooted at the repository) and `backend` (Go container, rooted at `backend`). Services are currently a Vercel beta feature; confirm availability for the target account before relying on this topology.
+- **Public routing:** `/rpc/*` routes to the Go backend; all other paths route to Next.js. This keeps Next.js `/api/*` routes on the app service. The backend's `/lifecycle/*`, `/healthz` and `/readyz` paths are not exposed by these rewrites.
+- **Internal calls:** the app declares a service binding to `backend` as `VASOLI_BACKEND_URL`. Server route handlers use it for lifecycle operations and Marco's server-side RPC tools. The browser calls the same-origin `/rpc` path. The backend container listens on port `80`, Vercel's default; do not manually define `VASOLI_BACKEND_URL`.
+- **Reminder delivery:** set `DISABLE_NOTIFICATION_WORKER=true` for the Vercel backend. Its request-driven container can scale down while idle, so an in-process polling loop cannot guarantee delivery. Keep email/push delivery disabled until a durable scheduled worker is deployed separately.
 - **Data and sign-in:** Supabase PostgreSQL, Auth and private Storage in a region selected for latency and the pilot's data-handling requirements. Use a dedicated, restricted `vasoli_app` database role for normal API requests and a separate migration credential for schema changes.
 - **Email and AI:** disabled for the pilot. Enable neither until separately reviewed and configured.
 - **Access:** invite-only, HTTPS, one frontend origin, no public registration. Start with a few named testers and synthetic or deliberately selected data.
 
-Provider selection is intentionally open. Before choosing, confirm supported Next.js runtime, persistent Go hosting, private networking, backups/restores, region, support, and the total cost for the expected pilot size. The repository does not establish a provider, a budget, or an approved paid plan.
+The Vercel project configuration is in [`vercel.json`](../vercel.json), and the backend container recipe is [`backend/Dockerfile.vercel`](../backend/Dockerfile.vercel). Supabase remains separately provisioned. Before deployment, confirm Vercel Services access, container runtime limits, backup/restore, region, support, and total cost. The repository does not establish a budget or an approved paid plan.
 
 ## Ordered rollout
 
-### 0. Choose the deployment target
+### 0. Confirm the Vercel service topology and environment
 
-Record the frontend host, Go host, Supabase project/region, domain, cost ceiling, operational owner, invite list, and who can access production secrets. Keep separate local, staging, and pilot environments; never point a deployment at the local database. Do not copy a real user's statement into staging just to test the deployment.
+Set the Vercel project's framework to **Services**, then confirm service names (`app`, `backend`), public routes (`/rpc/*` to backend and the catch-all to app), and the app-to-backend binding (`VASOLI_BACKEND_URL`). Record the Supabase project/region, domain, cost ceiling, operational owner, invite list, and who can access production secrets. Keep separate local, staging, and pilot environments; never point a deployment at the local database. Do not copy a real user's statement into staging just to test the deployment.
 
 **Gate:** the owner accepts the selected providers, data location, cost, and access model. Until then, prepare the plan but do not create paid services or publish a live endpoint.
 
 ### 1. Prepare an isolated staging environment
 
-Create a fresh Supabase project for staging with public signup disabled. Configure the frontend and API on separate HTTPS origins and a unique staging domain. Use exact origins in configuration, `ENV=production`, invite-only mode, and both auth-bypass flags set to `false`. Configure the Supabase issuer, `authenticated` audience, JWKS URL and only supported signing algorithms. Keep the service-role key, database URLs and migration credential in server-side secret stores; the anon key is the only Supabase key exposed to browser code.
+Create a fresh Supabase project for staging with public signup disabled. Configure both Vercel services in one project and a unique staging domain. Set exact origins in configuration, `ENV=production`, `DISABLE_NOTIFICATION_WORKER=true`, invite-only mode, and both auth-bypass flags set to `false`. Configure the Supabase issuer, `authenticated` audience, JWKS URL and only supported signing algorithms. Keep the service-role key, database URLs and migration credential in server-side secret stores; the anon key is the only Supabase key exposed to browser code.
 
-Build and deploy the Go API and Next.js app from the same reviewed commit. Set the web server's `RPC_BACKEND_URL` to the API origin, and the API's `CORS_ORIGINS` to the exact frontend origin required by the deployment guard. Confirm `/healthz` and `/readyz`, and verify that the frontend's `/rpc` requests reach the API. Do not expose the database publicly beyond the app/migration connections required by the selected host.
+Build and deploy both services from the same reviewed commit. The service binding supplies `VASOLI_BACKEND_URL`; do not set it manually. Keep the local-only `RPC_BACKEND_URL` rewrite fallback out of hosted configuration. Confirm `/healthz` and `/readyz` through the available service health mechanism and verify that public `/rpc` requests reach the API while Next.js `/api/*` routes still reach the app. Do not expose the database publicly beyond the app/migration connections required by the selected host.
 
 **Gate:** deployment preflight passes using a private config file; secrets are absent from browser bundles, source control, screenshots and logs; both services report healthy.
 

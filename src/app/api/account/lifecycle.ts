@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
-const backendURL = (process.env.RPC_BACKEND_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
+// Vercel injects this binding at runtime. RPC_BACKEND_URL remains the local-dev fallback.
+const backendURL = (process.env.VASOLI_BACKEND_URL || process.env.RPC_BACKEND_URL || "http://127.0.0.1:8080").replace(/\/+$/, "");
 
 export async function authenticatedAccessToken() {
   const supabase = createClient();

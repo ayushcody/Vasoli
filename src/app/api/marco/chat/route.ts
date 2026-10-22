@@ -117,7 +117,9 @@ export async function POST(req: NextRequest) {
                                     toolName,
                                     {
                                         accessToken: session?.access_token || "",
-                                        rpcBaseUrl: new URL(process.env.NEXT_PUBLIC_RPC_BASE_URL || "/rpc", req.url).toString(),
+                                        rpcBaseUrl: process.env.VASOLI_BACKEND_URL
+                                            ? new URL("/rpc", process.env.VASOLI_BACKEND_URL).toString().replace(/\/$/, "")
+                                            : new URL(process.env.NEXT_PUBLIC_RPC_BASE_URL || "/rpc", req.url).toString(),
                                     },
                                     toolArgs
                                 );

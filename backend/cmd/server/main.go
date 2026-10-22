@@ -104,9 +104,12 @@ func main() {
 	// Start Notification Worker
 	workerCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if dbQueries != nil {
+	disableNotificationWorker := strings.EqualFold(strings.TrimSpace(os.Getenv("DISABLE_NOTIFICATION_WORKER")), "true")
+	if dbQueries != nil && !disableNotificationWorker {
 		worker := api.StartNotificationWorkerWithPool(workerCtx, dbQueries, pool)
 		defer worker.Stop()
+	} else if disableNotificationWorker {
+		slog.Info("notification worker disabled by configuration")
 	}
 
 	// Base mux for /rpc
@@ -173,7 +176,11 @@ func main() {
 
 	serverAddr := strings.TrimSpace(os.Getenv("SERVER_ADDR"))
 	if serverAddr == "" {
-		serverAddr = ":8080"
+		port := strings.TrimSpace(os.Getenv("PORT"))
+		if port == "" {
+			port = "8080"
+		}
+		serverAddr = ":" + port
 	}
 	slog.Info("starting Vasoli gRPC server", "address", serverAddr)
 	server := &http.Server{Addr: serverAddr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
